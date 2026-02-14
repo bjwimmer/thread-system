@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Life Map | Brian's Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafaf8;
+            --bg-card: #ffffff;
+            --bg-hover: #f5f3ef;
+            --text: #1a1a1a;
+            --text-dim: #666666;
+            --text-light: #999999;
+            --accent-blue: #2563a8;
+            --accent-green: #2d7a4f;
+            --accent-yellow: #c87c0a;
+            --accent-red: #b83b2f;
+            --accent-purple: #7c3aed;
+            --border: #d4d0c8;
+            --border-heavy: #a8a499;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            border-bottom: 3px solid var(--border-heavy);
+            padding-bottom: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-family: 'Merriweather', serif;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+        
+        .quick-links {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .quick-link {
+            padding: 0.5rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--accent-blue);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .quick-link:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-hover);
+        }
+        
+        .review-banner {
+            background: #fff3cd;
+            border: 2px solid var(--accent-yellow);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 3rem;
+            display: none;
+        }
+        
+        .review-banner.show {
+            display: block;
+        }
+        
+        .review-banner h3 {
+            color: var(--accent-yellow);
+            margin-bottom: 0.5rem;
+        }
+        
+        .domains-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .domain-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .domain-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .domain-card.income {
+            border-left: 4px solid var(--accent-green);
+        }
+        
+        .domain-card.health {
+            border-left: 4px solid var(--accent-red);
+        }
+        
+        .domain-card.home {
+            border-left: 4px solid var(--accent-yellow);
+        }
+        
+        .domain-card.financial {
+            border-left: 4px solid var(--accent-purple);
+        }
+        
+        .domain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .domain-name {
+            font-family: 'Merriweather', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        
+        .active-thread-count {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            background: var(--accent-green);
+            color: white;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        
+        .goals-list {
+            list-style: none;
+        }
+        
+        .goal-item {
+            margin-bottom: 1rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--border);
+        }
+        
+        .goal-item.has-thread {
+            border-left-color: var(--accent-blue);
+        }
+        
+        .goal-name {
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .thread-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+        }
+        
+        .sub-goals {
+            list-style: none;
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+        }
+        
+        .sub-goal {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+        
+        .sub-goal::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--text-light);
+        }
+        
+        .goal-actions {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .goal-btn {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .goal-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        .add-domain-btn {
+            padding: 1rem 2rem;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .add-domain-btn:hover {
+            background: var(--text);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            border: 2px solid var(--border-heavy);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent-blue);
+            font-weight: 700;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 1rem;
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .btn-primary {
+            flex: 1;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: var(--text);
+        }
+        
+        .btn-secondary {
+            flex: 1;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            border: 2px solid var(--border-heavy);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .domains-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Strategic Life Map</h1>
+            <p class="subtitle">1-5 Year Goals • Connected to Daily Execution</p>
+            
+            <div class="quick-links">
+                <a href="thread-registry.html" class="quick-link">→ Thread Registry (Daily)</a>
+                <a href="income-map.html" class="quick-link">→ 90-Day Income Map</a>
+                <a href="index.html" class="quick-link">← Back to Home</a>
+            </div>
+        </header>
+        
+        <div class="review-banner" id="review-banner">
+            <h3>⏰ Quarterly Review Due</h3>
+            <p>It's time for your quarterly strategic review. Review each domain, update goals, mark completed items, and adjust priorities for the next 3 months.</p>
+        </div>
+        
+        <div class="domains-grid" id="domains-container">
+            <!-- Domains will be rendered here -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 3rem;">
+            <button class="add-domain-btn" onclick="openAddDomainModal()">+ Add New Domain</button>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Domain Modal -->
+    <div class="modal" id="domain-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Add New Domain</h2>
+            <form id="domain-form">
+                <div class="form-group">
+                    <label class="form-label">Domain Name</label>
+                    <input type="text" class="form-input" id="domain-name" placeholder="e.g., Income, Health, Creative" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Color Theme</label>
+                    <select class="form-select" id="domain-color" required>
+                        <option value="income">Green (Income/Financial Growth)</option>
+                        <option value="health">Red (Health/Wellbeing)</option>
+                        <option value="home">Yellow (Home/Environment)</option>
+                        <option value="financial">Purple (Financial Management)</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Add Domain</button>
+                    <button type="button" class="btn-secondary" onclick="closeDomainModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Goal Modal -->
+    <div class="modal" id="goal-modal">
+        <div class="modal-content">
+            <h2 class="modal-header" id="goal-modal-title">Add New Goal</h2>
+            <form id="goal-form">
+                <div class="form-group">
+                    <label class="form-label">Goal Name</label>
+                    <input type="text" class="form-input" id="goal-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Sub-Goals (one per line, optional)</label>
+                    <textarea class="form-textarea" id="goal-subgoals" placeholder="First sub-goal&#10;Second sub-goal&#10;Third sub-goal"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Timeline</label>
+                    <select class="form-select" id="goal-timeline">
+                        <option value="1-year">1 Year</option>
+                        <option value="2-year">2 Years</option>
+                        <option value="3-year">3 Years</option>
+                        <option value="5-year">5 Years</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Goal</button>
+                    <button type="button" class="btn-secondary" onclick="closeGoalModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Data structure
+        let strategicMap = {
+            domains: [],
+            lastReview: null
+        };
+        
+        // Initialize with Projects 2026 data
+        const initialData = {
+            domains: [
+                {
+                    id: 'income',
+                    name: 'Supplemental Income',
+                    color: 'income',
+                    goals: [
+                        {
+                            id: 'etsy',
+                            name: 'Etsy',
+                            subgoals: [
+                                'T-shirts for fundraising',
+                                'Cards',
+                                'Mugs',
+                                'New items',
+                                'Fundraising (Michael J. Fox / Parkinson\'s Foundation)'
+                            ],
+                            timeline: '1-year',
+                            hasThread: true
+                        },
+                        {
+                            id: 'self-employment',
+                            name: 'Self-employment',
+                            subgoals: [
+                                'Construction knowledge/instruction/lead-manager',
+                                'Craft options'
+                            ],
+                            timeline: '2-year',
+                            hasThread: false
+                        }
+                    ]
+                },
+                {
+                    id: 'home',
+                    name: 'Clean out life/house',
+                    color: 'home',
+                    goals: [
+                        {
+                            id: 'sell-items',
+                            name: 'Sell items',
+                            subgoals: [
+                                'Tools',
+                                'Snowblower (get running)',
+                                'Hyundai (brakes)'
+                            ],
+                            timeline: '1-year',
+                            hasThread: false
+                        },
+                        {
+                            id: 'give-away',
+                            name: 'Give away items',
+                            subgoals: [
+                                'Clothing',
+                                'Miscellaneous kitchen items',
+                                'Miscellaneous household items'
+                            ],
+                            timeline: '1-year',
+                            hasThread: false
+                        },
+                        {
+                            id: 'sell-house',
+                            name: 'Sell house?',
+                            subgoals: [
+                                'See clean out progress',
+                                'Research selling options (Full realtor vs Partial self-sell)'
+                            ],
+                            timeline: '3-year',
+                            hasThread: false
+                        }
+                    ]
+                },
+                {
+                    id: 'health',
+                    name: 'Health',
+                    color: 'health',
+                    goals: [
+                        {
+                            id: 'adhd',
+                            name: 'ADHD',
+                            subgoals: [
+                                'Med change?',
+                                'Continue coaching'
+                            ],
+                            timeline: '1-year',
+                            hasThread: false
+                        },
+                        {
+                            id: 'parkinsons',
+                            name: 'Parkinson\'s',
+                            subgoals: [
+                                'Exercise (Walking, E-biking)',
+                                'Handi-cap placard'
+                            ],
+                            timeline: '1-year',
+                            hasThread: false
+                        }
+                    ]
+                },
+                {
+                    id: 'financial',
+                    name: 'Financial',
+                    color: 'financial',
+                    goals: [
+                        {
+                            id: 'health-plan',
+                            name: 'Investigate health plan',
+                            subgoals: [],
+                            timeline: '1-year',
+                            hasThread: false
+                        },
+                        {
+                            id: 'budget',
+                            name: 'Budget & Bill Review',
+                            subgoals: [
+                                'Cancel subscriptions',
+                                'Review all bills'
+                            ],
+                            timeline: '1-year',
+                            hasThread: false
+                        }
+                    ]
+                }
+            ],
+            lastReview: new Date().toISOString()
+        };
+        
+        // Load from localStorage or use initial data
+        const saved = localStorage.getItem('strategic_map');
+        if (saved) {
+            strategicMap = JSON.parse(saved);
+        } else {
+            strategicMap = initialData;
+            localStorage.setItem('strategic_map', JSON.stringify(strategicMap));
+        }
+        
+        function renderDomains() {
+            const container = document.getElementById('domains-container');
+            container.innerHTML = '';
+            
+            strategicMap.domains.forEach(domain => {
+                const activeThreads = domain.goals.filter(g => g.hasThread).length;
+                
+                const domainCard = document.createElement('div');
+                domainCard.className = `domain-card ${domain.color}`;
+                
+                let goalsHTML = '';
+                domain.goals.forEach(goal => {
+                    let subgoalsHTML = '';
+                    if (goal.subgoals && goal.subgoals.length > 0) {
+                        subgoalsHTML = '<ul class="sub-goals">';
+                        goal.subgoals.forEach(sub => {
+                            subgoalsHTML += `<li class="sub-goal">${sub}</li>`;
+                        });
+                        subgoalsHTML += '</ul>';
+                    }
+                    
+                    goalsHTML += `
+                        <li class="goal-item ${goal.hasThread ? 'has-thread' : ''}">
+                            <div class="goal-name">
+                                ${goal.hasThread ? '<span class="thread-indicator"></span>' : ''}
+                                ${goal.name}
+                            </div>
+                            ${subgoalsHTML}
+                            <div class="goal-actions">
+                                <button class="goal-btn" onclick="createThreadFromGoal('${domain.id}', '${goal.id}')">Create Thread</button>
+                                <button class="goal-btn" onclick="editGoal('${domain.id}', '${goal.id}')">Edit</button>
+                            </div>
+                        </li>
+                    `;
+                });
+                
+                domainCard.innerHTML = `
+                    <div class="domain-header">
+                        <h2 class="domain-name">${domain.name}</h2>
+                        ${activeThreads > 0 ? `<span class="active-thread-count">${activeThreads} active</span>` : ''}
+                    </div>
+                    <ul class="goals-list">
+                        ${goalsHTML}
+                    </ul>
+                    <div style="margin-top: 1rem;">
+                        <button class="goal-btn" onclick="addGoalToDomain('${domain.id}')">+ Add Goal</button>
+                    </div>
+                `;
+                
+                container.appendChild(domainCard);
+            });
+        }
+        
+        function openAddDomainModal() {
+            document.getElementById('domain-modal').classList.add('active');
+        }
+        
+        function closeDomainModal() {
+            document.getElementById('domain-modal').classList.remove('active');
+        }
+        
+        function closeGoalModal() {
+            document.getElementById('goal-modal').classList.remove('active');
+        }
+        
+        let currentDomainId = null;
+        
+        function addGoalToDomain(domainId) {
+            currentDomainId = domainId;
+            document.getElementById('goal-modal-title').textContent = 'Add New Goal';
+            document.getElementById('goal-form').reset();
+            document.getElementById('goal-modal').classList.add('active');
+        }
+        
+        function createThreadFromGoal(domainId, goalId) {
+            alert('This will open the Thread Registry and pre-fill a new thread based on this goal. Feature coming soon!');
+        }
+        
+        function editGoal(domainId, goalId) {
+            alert('Edit goal functionality - allows updating goal name, sub-goals, and timeline');
+        }
+        
+        // Form handlers
+        document.getElementById('domain-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newDomain = {
+                id: Date.now().toString(),
+                name: document.getElementById('domain-name').value,
+                color: document.getElementById('domain-color').value,
+                goals: []
+            };
+            
+            strategicMap.domains.push(newDomain);
+            localStorage.setItem('strategic_map', JSON.stringify(strategicMap));
+            
+            closeDomainModal();
+            renderDomains();
+        });
+        
+        document.getElementById('goal-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const domain = strategicMap.domains.find(d => d.id === currentDomainId);
+            if (!domain) return;
+            
+            const subgoalsText = document.getElementById('goal-subgoals').value;
+            const subgoals = subgoalsText.split('\n').filter(s => s.trim()).map(s => s.trim());
+            
+            const newGoal = {
+                id: Date.now().toString(),
+                name: document.getElementById('goal-name').value,
+                subgoals: subgoals,
+                timeline: document.getElementById('goal-timeline').value,
+                hasThread: false
+            };
+            
+            domain.goals.push(newGoal);
+            localStorage.setItem('strategic_map', JSON.stringify(strategicMap));
+            
+            closeGoalModal();
+            renderDomains();
+        });
+        
+        // Check for quarterly review
+        function checkReviewDue() {
+            if (!strategicMap.lastReview) {
+                document.getElementById('review-banner').classList.add('show');
+                return;
+            }
+            
+            const lastReview = new Date(strategicMap.lastReview);
+            const today = new Date();
+            const diffMonths = (today.getFullYear() - lastReview.getFullYear()) * 12 + (today.getMonth() - lastReview.getMonth());
+            
+            if (diffMonths >= 3) {
+                document.getElementById('review-banner').classList.add('show');
+            }
+        }
+        
+        // Initial render
+        renderDomains();
+        checkReviewDue();
+        
+        // Close modals on outside click
+        document.getElementById('domain-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeDomainModal();
+        });
+        
+        document.getElementById('goal-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeGoalModal();
+        });
+    </script>
+</body>
+</html>
