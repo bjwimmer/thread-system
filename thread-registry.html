@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread Registry | Brian's System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #fdfbf7; --bg-card: #ffffff; --bg-hover: #f5f3ef;
+            --text-primary: #1a1a1a; --text-secondary: #4a4a4a; --text-dim: #7a7a7a;
+            --border: #d4d0c8; --border-heavy: #a8a499;
+            --green: #2d7a4f; --yellow: #c87c0a; --red: #b83b2f; --blue: #2563a8; --accent: #8b6f47;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Libre Baskerville', serif; background: var(--bg-main); color: var(--text-primary); padding: 2rem; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { border-bottom: 2px solid var(--border-heavy); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+        h1 { font-size: 2.5rem; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem; }
+        .date { font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; color: var(--text-dim); }
+        .nav-links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .nav-link { font-size: 0.85rem; color: var(--blue); text-decoration: none; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); transition: all 0.2s; }
+        .nav-link:hover { border-color: var(--blue); background: var(--bg-hover); }
+        .sync-controls { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+        .sync-status { display: flex; align-items: center; gap: 0.5rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--text-dim); }
+        .sync-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+        .sync-indicator.synced { background: var(--green); }
+        .sync-indicator.syncing { background: var(--yellow); animation: pulse 1s infinite; }
+        .sync-indicator.error { background: var(--red); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .sync-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid var(--border-heavy); background: var(--bg-card); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .active-week { background: var(--bg-card); border: 2px solid var(--border); border-left: 4px solid var(--accent); padding: 1.5rem; margin-bottom: 2rem; border-radius: 4px; }
+        .active-week h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+        .inbox-notice { background: #fff3cd; border: 2px solid var(--yellow); border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 2rem; display: none; }
+        .inbox-notice.show { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .inbox-notice-text { flex: 1; }
+        .inbox-notice-text strong { color: var(--yellow); }
+        .process-inbox-btn { background: var(--yellow); color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; cursor: pointer; font-weight: 600; white-space: nowrap; }
+        .process-inbox-btn:hover { background: var(--text); }
+        .slot { background: var(--bg-hover); padding: 1rem; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 1rem; }
+        .slot-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .slot-thread { font-size: 1.2rem; font-weight: 600; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin: 3rem 0 1.5rem 0; flex-wrap: wrap; gap: 1rem; }
+        .section-header h2 { font-size: 1.8rem; }
+        .add-thread { background: var(--accent); color: var(--bg-main); border: none; padding: 0.5rem 1.5rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; font-weight: 500; }
+        .add-thread:hover { background: var(--text-primary); }
+        .thread-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: 4px; padding: 1.5rem; margin-bottom: 1rem; }
+        .thread-card:hover { border-color: var(--accent); }
+        .thread-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .thread-health { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 12px; text-transform: uppercase; font-weight: 600; display: inline-block; margin-left: 1rem; }
+        .health-green { background: #d4edda; color: var(--green); }
+        .health-yellow { background: #fff3cd; color: var(--yellow); }
+        .health-red { background: #f8d7da; color: var(--red); }
+        .goal-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--blue); background: rgba(37, 99, 168, 0.1); padding: 0.25rem 0.75rem; border-radius: 3px; display: inline-block; margin-bottom: 1rem; cursor: pointer; }
+        .goal-link:hover { background: rgba(37, 99, 168, 0.2); }
+        .thread-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; }
+        .thread-status, .thread-next-action { padding: 1rem; border-radius: 2px; margin-bottom: 1rem; }
+        .thread-status { background: #e7f3ff; border-left: 3px solid var(--blue); }
+        .thread-next-action { background: #f8f3e8; border-left: 3px solid var(--accent); }
+        .status-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.5rem; font-weight: 600; }
+        .thread-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .thread-btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.4rem 1rem; border-radius: 3px; border: 1px solid var(--border-heavy); background: var(--bg-card); color: var(--text-secondary); cursor: pointer; }
+        .thread-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-dim); font-style: italic; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-card); border: 2px solid var(--border-heavy); border-radius: 8px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--accent); font-weight: 700; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; font-weight: 600; }
+        .form-input, .form-textarea, .form-select { width: 100%; background: var(--bg-main); border: 2px solid var(--border); padding: 0.75rem; border-radius: 4px; font-family: 'Libre Baskerville', serif; }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+        .form-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn-primary { flex: 1; background: var(--accent); color: var(--bg-main); border: none; padding: 0.75rem; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        .btn-primary:hover { background: var(--text-primary); }
+        .btn-secondary { flex: 1; background: var(--bg-card); color: var(--text-secondary); border: 2px solid var(--border-heavy); padding: 0.75rem; border-radius: 4px; cursor: pointer; }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        @media (max-width: 768px) { body { padding: 1rem; } h1 { font-size: 2rem; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Thread Registry</h1>
+            <div class="date">Medical Leave: Week <span id="current-week">1</span> of 12</div>
+            <div class="nav-links">
+                <a href="strategic-life-map.html" class="nav-link">🗺️ Strategic Life Map</a>
+                <a href="income-map.html" class="nav-link">📊 90-Day Income Map</a>
+                <a href="index.html" class="nav-link">← Home</a>
+            </div>
+            <div class="sync-controls">
+                <div class="sync-status">
+                    <div class="sync-indicator" id="sync-indicator"></div>
+                    <span id="sync-status-text">Not configured</span>
+                </div>
+                <button class="sync-btn" onclick="openSetupModal()">⚙️ Setup</button>
+                <button class="sync-btn" onclick="openAdminModal()">🔧 Admin</button>
+            </div>
+        </header>
+        
+        <div class="inbox-notice" id="inbox-notice">
+            <div class="inbox-notice-text">
+                <strong>📥 Quick Capture Inbox:</strong> You have <span id="inbox-count-notice">0</span> item(s) waiting to be processed
+            </div>
+            <button class="process-inbox-btn" onclick="window.location.href='quick-capture.html'">Process Inbox →</button>
+        </div>
+        
+        <div class="active-week">
+            <h2>This Week's Active Threads</h2>
+            <div class="slot">
+                <div class="slot-label">Slot 1: Income Domain</div>
+                <div class="slot-thread" id="slot-1">No thread selected</div>
+            </div>
+            <div class="slot">
+                <div class="slot-label">Slot 2: Secondary Domain</div>
+                <div class="slot-thread" id="slot-2">No thread selected</div>
+            </div>
+        </div>
+        
+        <div class="section-header">
+            <h2>All Active Threads</h2>
+            <button class="add-thread" onclick="openAddThreadModal()">+ New Thread</button>
+        </div>
+        <div id="active-thread-list">
+            <div class="empty-state">No threads yet. Click "+ New Thread" to get started.</div>
+        </div>
+        
+        <div class="section-header" style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border);">
+            <h2>Dormant Threads</h2>
+        </div>
+        <div id="dormant-thread-list" style="opacity: 0.65;">
+            <div class="empty-state">No dormant threads yet</div>
+        </div>
+    </div>
+    
+    <div class="modal" id="setup-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Setup GitHub Sync</h2>
+            <div class="form-group">
+                <label class="form-label">GitHub Token</label>
+                <input type="text" class="form-input" id="github-token" placeholder="ghp_xxxxxxxxxxxx">
+                <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">Create at: github.com/settings/tokens/new (gist scope only)</p>
+            </div>
+            <div class="form-actions">
+                <button class="btn-primary" onclick="saveToken()">Save & Sync</button>
+                <button class="btn-secondary" onclick="closeSetupModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="admin-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Admin Panel</h2>
+            <div class="form-group">
+                <label class="form-label">Gist ID</label>
+                <input type="text" class="form-input" id="admin-gist-id" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Set Gist ID</label>
+                <input type="text" class="form-input" id="manual-gist-id" placeholder="Paste gist ID">
+                <button class="btn-primary" style="margin-top: 1rem; width: 100%;" onclick="setGistId()">Connect</button>
+            </div>
+            <div class="form-group" style="border-top: 2px solid var(--border); padding-top: 1.5rem; margin-top: 2rem;">
+                <button class="sync-btn" style="width: 100%; color: var(--red); border-color: var(--red);" onclick="clearSyncData()">Clear Sync Data</button>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeAdminModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="thread-modal">
+        <div class="modal-content">
+            <h2 class="modal-header" id="modal-title">Add New Thread</h2>
+            <form id="thread-form">
+                <div class="form-group">
+                    <label class="form-label">Thread Name</label>
+                    <input type="text" class="form-input" id="thread-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Domain</label>
+                    <select class="form-select" id="thread-domain" required>
+                        <option value="">Select...</option>
+                        <option value="Income">Income</option>
+                        <option value="Health">Health</option>
+                        <option value="Home">Home</option>
+                        <option value="Financial">Financial</option>
+                        <option value="Creative">Creative</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rhythm</label>
+                    <select class="form-select" id="thread-rhythm" required>
+                        <option value="">Select...</option>
+                        <option value="Sprint">Sprint</option>
+                        <option value="Steady">Steady</option>
+                        <option value="Seasonal">Seasonal</option>
+                        <option value="Reactive">Reactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Link to Goal (optional)</label>
+                    <select class="form-select" id="thread-goal">
+                        <option value="">No link</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Current Status</label>
+                    <textarea class="form-textarea" id="thread-status" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Next Micro-Action (5-20 min)</label>
+                    <textarea class="form-textarea" id="thread-action" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save</button>
+                    <button type="button" class="btn-secondary" onclick="closeThreadModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let data = { threads: [], activeSlots: {}, strategicMap: { domains: [] }, inbox: [] };
+        let token = localStorage.getItem('github_token');
+        let gistId = localStorage.getItem('gist_id');
+        let status = 'not_configured';
+        
+        function checkInbox() {
+            const count = data.inbox?.length || 0;
+            const notice = document.getElementById('inbox-notice');
+            const countSpan = document.getElementById('inbox-count-notice');
+            
+            if (count > 0) {
+                notice.classList.add('show');
+                countSpan.textContent = count;
+            } else {
+                notice.classList.remove('show');
+            }
+        }
+        
+        async function load() {
+            if (!token) { updateStatus(); return; }
+            status = 'syncing'; updateStatus();
+            try {
+                if (!gistId) {
+                    const r = await fetch('https://api.github.com/gists', {
+                        method: 'POST',
+                        headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            description: 'Thread System Data',
+                            public: false,
+                            files: { 'data.json': { content: JSON.stringify(data, null, 2) } }
+                        })
+                    });
+                    if (!r.ok) throw new Error('Create failed');
+                    const d = await r.json();
+                    gistId = d.id;
+                    localStorage.setItem('gist_id', gistId);
+                } else {
+                    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        headers: { 'Authorization': `token ${token}` }
+                    });
+                    if (!r.ok) throw new Error('Load failed');
+                    const d = await r.json();
+                    data = JSON.parse(d.files['data.json'].content);
+                }
+                status = 'synced';
+                render();
+                populateGoals();
+                checkInbox();
+            } catch (e) {
+                console.error(e);
+                status = 'error';
+            }
+            updateStatus();
+        }
+        
+        async function save() {
+            if (!token || !gistId) return;
+            status = 'syncing'; updateStatus();
+            try {
+                const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: { 'data.json': { content: JSON.stringify(data, null, 2) } } })
+                });
+                if (!r.ok) throw new Error('Save failed');
+                status = 'synced';
+            } catch (e) {
+                console.error(e);
+                status = 'error';
+            }
+            updateStatus();
+        }
+        
+        function updateStatus() {
+            const ind = document.getElementById('sync-indicator');
+            const txt = document.getElementById('sync-status-text');
+            ind.className = 'sync-indicator';
+            if (status === 'synced') { ind.classList.add('synced'); txt.textContent = 'Synced'; }
+            else if (status === 'syncing') { ind.classList.add('syncing'); txt.textContent = 'Syncing...'; }
+            else if (status === 'error') { ind.classList.add('error'); txt.textContent = 'Error'; }
+            else { txt.textContent = 'Not configured'; }
+        }
+        
+        function openSetupModal() { document.getElementById('setup-modal').classList.add('active'); }
+        function closeSetupModal() { document.getElementById('setup-modal').classList.remove('active'); }
+        function openAdminModal() {
+            document.getElementById('admin-gist-id').value = gistId || 'Not set';
+            document.getElementById('admin-modal').classList.add('active');
+        }
+        function closeAdminModal() { document.getElementById('admin-modal').classList.remove('active'); }
+        
+        async function saveToken() {
+            const t = document.getElementById('github-token').value.trim();
+            if (!t || !t.startsWith('ghp_')) { alert('Invalid token'); return; }
+            token = t;
+            localStorage.setItem('github_token', t);
+            closeSetupModal();
+            await load();
+        }
+        
+        async function setGistId() {
+            const id = document.getElementById('manual-gist-id').value.trim();
+            if (!id) { alert('Enter gist ID'); return; }
+            if (!token) { alert('Setup token first'); return; }
+            try {
+                const r = await fetch(`https://api.github.com/gists/${id}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (!r.ok) throw new Error('Cannot access');
+                gistId = id;
+                localStorage.setItem('gist_id', id);
+                closeAdminModal();
+                await load();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+        
+        function clearSyncData() {
+            if (!confirm('Clear sync?')) return;
+            localStorage.removeItem('github_token');
+            localStorage.removeItem('gist_id');
+            token = null;
+            gistId = null;
+            status = 'not_configured';
+            updateStatus();
+            closeAdminModal();
+        }
+        
+        function openAddThreadModal() {
+            populateGoals();
+            document.getElementById('modal-title').textContent = 'Add New Thread';
+            document.getElementById('thread-form').reset();
+            document.getElementById('thread-modal').classList.add('active');
+        }
+        
+        function closeThreadModal() { document.getElementById('thread-modal').classList.remove('active'); }
+        
+        function populateGoals() {
+            const sel = document.getElementById('thread-goal');
+            sel.innerHTML = '<option value="">No link</option>';
+            (data.strategicMap?.domains || []).forEach(d => {
+                (d.goals || []).forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = `${d.id}:${g.id}`;
+                    opt.textContent = `${d.name} → ${g.name}`;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+        
+        function findGoal(ref) {
+            if (!ref) return null;
+            const [did, gid] = ref.split(':');
+            const d = (data.strategicMap?.domains || []).find(x => x.id === did);
+            const g = (d?.goals || []).find(x => x.id === gid);
+            return g ? { domain: d, goal: g } : null;
+        }
+        
+        async function markTouched(id) {
+            const t = data.threads.find(x => x.id == id);
+            if (!t) return;
+            t.lastTouched = new Date().toISOString();
+            t.health = 'green';
+            await save();
+            render();
+        }
+        
+        async function makeActive(id) {
+            const t = data.threads.find(x => x.id == id);
+            if (!t) return;
+            t.phase = 'active';
+            await save();
+            render();
+        }
+        
+        async function makeDormant(id) {
+            const t = data.threads.find(x => x.id == id);
+            if (!t) return;
+            t.phase = 'dormant';
+            await save();
+            render();
+        }
+        
+        function render() {
+            const active = data.threads.filter(t => t.phase === 'active');
+            const dormant = data.threads.filter(t => t.phase === 'dormant');
+            
+            const aList = document.getElementById('active-thread-list');
+            const dList = document.getElementById('dormant-thread-list');
+            
+            aList.innerHTML = active.length ? active.map(makeCard).join('') : '<div class="empty-state">No threads yet</div>';
+            dList.innerHTML = dormant.length ? dormant.map(makeCard).join('') : '<div class="empty-state">No dormant threads</div>';
+        }
+        
+        function makeCard(t) {
+            const last = new Date(t.lastTouched);
+            const now = new Date();
+            const days = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+            const daysTxt = days === 0 ? 'Today' : `${days} day${days > 1 ? 's' : ''} ago`;
+            
+            let goalHTML = '';
+            if (t.linkedGoalId) {
+                const g = findGoal(t.linkedGoalId);
+                if (g) {
+                    goalHTML = `<div class="goal-link" onclick="window.location.href='strategic-life-map.html?goal=${t.linkedGoalId}'">🎯 ${g.domain.name} → ${g.goal.name}</div>`;
+                }
+            }
+            
+            return `
+                <div class="thread-card">
+                    <div class="thread-title">${t.name}<span class="thread-health health-${t.health}">${t.health}</span></div>
+                    ${goalHTML}
+                    <div class="thread-meta">Domain: ${t.domain} | Rhythm: ${t.rhythm} | Last: ${daysTxt}</div>
+                    <div class="thread-status">
+                        <div class="status-label">Current Status</div>
+                        <div>${t.status}</div>
+                    </div>
+                    <div class="thread-next-action">
+                        <div class="status-label">Next Micro-Action</div>
+                        <div>${t.nextAction}</div>
+                    </div>
+                    <div class="thread-actions">
+                        <button class="thread-btn" onclick="markTouched('${t.id}')">Mark Touched</button>
+                        <button class="thread-btn" onclick="makeActive('${t.id}')">Activate</button>
+                        <button class="thread-btn" onclick="makeDormant('${t.id}')">Dormant</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const start = new Date('2025-02-14');
+        const today = new Date();
+        const week = Math.min(Math.ceil(Math.abs(today - start) / (1000 * 60 * 60 * 24 * 7)), 12);
+        document.getElementById('current-week').textContent = week;
+        
+        document.getElementById('thread-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            data.threads.push({
+                id: Date.now(),
+                name: document.getElementById('thread-name').value,
+                domain: document.getElementById('thread-domain').value,
+                rhythm: document.getElementById('thread-rhythm').value,
+                linkedGoalId: document.getElementById('thread-goal').value || null,
+                status: document.getElementById('thread-status').value,
+                nextAction: document.getElementById('thread-action').value,
+                lastTouched: new Date().toISOString(),
+                health: 'green',
+                phase: 'active'
+            });
+            closeThreadModal();
+            await save();
+            render();
+        });
+        
+        ['setup-modal', 'admin-modal', 'thread-modal'].forEach(id => {
+            document.getElementById(id).addEventListener('click', (e) => {
+                if (e.target.id === id) document.getElementById(id).classList.remove('active');
+            });
+        });
+        
+        window.addEventListener('DOMContentLoaded', () => { updateStatus(); load(); });
+    </script>
+</body>
+</html>

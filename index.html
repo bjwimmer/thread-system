@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Libre Baskerville', serif;
+            background: #fdfbf7;
+            color: #1a1a1a;
+            padding: 4rem 2rem;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            color: #8b6f47;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-family: 'IBM Plex Mono', monospace;
+            color: #7a7a7a;
+            margin-bottom: 3rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .tools {
+            display: grid;
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .tool-card {
+            background: white;
+            border: 2px solid #d4d0c8;
+            border-radius: 8px;
+            padding: 2rem;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .tool-card:hover {
+            border-color: #8b6f47;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        
+        .tool-card h2 {
+            font-size: 1.8rem;
+            color: #1a1a1a;
+            margin-bottom: 1rem;
+        }
+        
+        .tool-card p {
+            color: #4a4a4a;
+            margin-bottom: 1.5rem;
+            line-height: 1.7;
+        }
+        
+        .tool-link {
+            display: inline-block;
+            background: #8b6f47;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .tool-link:hover {
+            background: #1a1a1a;
+            transform: translateY(-1px);
+        }
+        
+        .inbox-badge {
+            display: inline-block;
+            background: #c87c0a;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .inbox-badge.hidden {
+            display: none;
+        }
+        
+        .info {
+            margin-top: 3rem;
+            padding: 1.5rem;
+            background: #f5f3ef;
+            border-left: 4px solid #8b6f47;
+            border-radius: 4px;
+        }
+        
+        .info h3 {
+            color: #8b6f47;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info p {
+            color: #4a4a4a;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Thread Management System</h1>
+        <p class="subtitle">ADHD-Aligned Planning Tools</p>
+        
+        <div class="tools">
+            <div class="tool-card">
+                <h2>Quick Capture <span class="inbox-badge hidden" id="inbox-badge">0</span></h2>
+                <p>⚡ Rapid inbox for thoughts, tasks, and ideas. Throw it in now, organize it later during check-ins.</p>
+                <a href="quick-capture.html" class="tool-link">Open Quick Capture →</a>
+            </div>
+            
+            <div class="tool-card">
+                <h2>Thread Registry</h2>
+                <p>Your daily command center. Track active threads, see what needs attention, and manage your weekly focus slots. Open this every morning and evening.</p>
+                <a href="thread-registry.html" class="tool-link">Open Thread Registry →</a>
+            </div>
+            
+            <div class="tool-card">
+                <h2>Strategic Life Map</h2>
+                <p>Big picture view of your 1-5 year goals across all life domains. Brainstorm strategies, link goals to threads, and maintain strategic clarity.</p>
+                <a href="strategic-life-map.html" class="tool-link">Open Strategic Map →</a>
+            </div>
+            
+            <div class="tool-card">
+                <h2>90-Day Income Map</h2>
+                <p>Visual timeline of your medical leave period showing phases, milestones, and escalation triggers. Reference this during Monday planning and checkpoint weeks.</p>
+                <a href="income-map.html" class="tool-link">Open Income Map →</a>
+            </div>
+        </div>
+        
+        <div class="info">
+            <h3>Quick Start</h3>
+            <p><strong>Bookmark this page</strong> on all your devices. Your thread data saves automatically in your browser.</p>
+            <p style="margin-top: 1rem;"><a href="HOW-THIS-SYSTEM-WORKS.html" style="color: var(--accent); text-decoration: underline;">📖 Read: How This System Works For Me</a> - Understanding the design and why it fits your brain.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Load inbox count from localStorage or GitHub Gist
+        async function loadInboxCount() {
+            let count = 0;
+            const token = localStorage.getItem('github_token');
+            const gistId = localStorage.getItem('gist_id');
+            
+            if (token && gistId) {
+                try {
+                    const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        headers: { 'Authorization': `token ${token}` }
+                    });
+                    if (r.ok) {
+                        const d = await r.json();
+                        const data = JSON.parse(d.files['data.json'].content);
+                        count = data.inbox?.length || 0;
+                    }
+                } catch (e) {
+                    // Fallback to localStorage
+                    const saved = localStorage.getItem('quick_capture_inbox');
+                    if (saved) count = JSON.parse(saved).length;
+                }
+            } else {
+                // No sync - check localStorage
+                const saved = localStorage.getItem('quick_capture_inbox');
+                if (saved) count = JSON.parse(saved).length;
+            }
+            
+            const badge = document.getElementById('inbox-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', loadInboxCount);
+    </script>
+</body>
+</html>
