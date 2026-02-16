@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>90-Day Income Scaffolding | Medical Leave Timeline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafaf8;
+            --bg-card: #ffffff;
+            --text: #1a1a1a;
+            --text-dim: #666666;
+            --accent-blue: #2563a8;
+            --accent-green: #2d7a4f;
+            --accent-yellow: #c87c0a;
+            --accent-red: #b83b2f;
+            --border: #d4d0c8;
+            --border-heavy: #a8a499;
+            --grid: #e8e6e0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 3rem 2rem;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            border-bottom: 3px solid var(--border-heavy);
+            padding-bottom: 2rem;
+        }
+        
+        h1 {
+            font-family: 'Merriweather', serif;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+        
+        .timeline-overview {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+        
+        .overview-stat {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        
+        .weeks-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+        
+        .week-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem 1rem;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        
+        .week-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--accent-blue);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s;
+        }
+        
+        .week-card.current::before {
+            transform: scaleX(1);
+        }
+        
+        .week-card.current {
+            border-color: var(--accent-blue);
+            box-shadow: 0 2px 8px rgba(37, 99, 168, 0.15);
+        }
+        
+        .week-card.past {
+            opacity: 0.5;
+            background: var(--bg);
+        }
+        
+        .week-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+        }
+        
+        .week-number {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .week-focus {
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            min-height: 3rem;
+        }
+        
+        .week-milestone {
+            font-size: 0.75rem;
+            color: var(--accent-green);
+            padding: 0.25rem 0.5rem;
+            background: rgba(45, 122, 79, 0.1);
+            border-radius: 3px;
+            display: inline-block;
+            border: 1px solid var(--accent-green);
+            font-weight: 600;
+        }
+        
+        .milestone-critical {
+            color: var(--accent-red);
+            background: rgba(184, 59, 47, 0.1);
+            border-color: var(--accent-red);
+        }
+        
+        .milestone-warn {
+            color: var(--accent-yellow);
+            background: rgba(200, 124, 10, 0.1);
+            border-color: var(--accent-yellow);
+        }
+        
+        .phase-divider {
+            margin: 3rem 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .phase-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-heavy);
+            z-index: 0;
+        }
+        
+        .phase-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            background: var(--bg);
+            padding: 0.5rem 2rem;
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+        
+        .income-threads {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 3rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .income-threads h2 {
+            font-family: 'Merriweather', serif;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent-green);
+        }
+        
+        .thread-item {
+            background: rgba(37, 99, 168, 0.04);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+        
+        .thread-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        
+        .thread-strategy {
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+        
+        .thread-timeline {
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+        
+        .escalation-points {
+            background: rgba(184, 59, 47, 0.05);
+            border: 2px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .escalation-points h2 {
+            font-family: 'Merriweather', serif;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent-red);
+        }
+        
+        .escalation-item {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+            border-left: 3px solid var(--accent-yellow);
+        }
+        
+        .escalation-week {
+            font-size: 0.85rem;
+            color: var(--accent-yellow);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+        
+        .escalation-action {
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .weeks-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1.5rem 1rem;
+            }
+            
+            .weeks-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>90-Day Income Scaffolding</h1>
+            <p class="subtitle">Medical Leave Timeline • Weeks 1-12</p>
+        </header>
+        
+        <div class="timeline-overview">
+            <div class="overview-grid">
+                <div class="overview-stat">
+                    <div class="stat-number">12</div>
+                    <div class="stat-label">Total Weeks</div>
+                </div>
+                <div class="overview-stat">
+                    <div class="stat-number" id="weeks-remaining">11</div>
+                    <div class="stat-label">Weeks Remaining</div>
+                </div>
+                <div class="overview-stat">
+                    <div class="stat-number">2</div>
+                    <div class="stat-label">Income Threads</div>
+                </div>
+                <div class="overview-stat">
+                    <div class="stat-number">Week 10</div>
+                    <div class="stat-label">Critical Decision Point</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="income-threads">
+            <h2>Active Income Threads</h2>
+            
+            <div class="thread-item">
+                <div class="thread-name">Etsy Revenue Growth</div>
+                <div class="thread-strategy">
+                    Current State: Minimal sales. Existing designs uploaded.<br>
+                    Strategy: Increase visibility through Pinterest marketing, optimize product descriptions, launch Parkinson's fundraiser designs (Michael J. Fox Foundation).<br>
+                    Target: Establish consistent $200-500/month baseline by Week 8.
+                </div>
+                <div class="thread-timeline">
+                    Weeks 1-3: Marketing foundation | Weeks 4-6: Launch & optimize | Weeks 7-12: Scale & stabilize
+                </div>
+            </div>
+            
+            <div class="thread-item">
+                <div class="thread-name">Moonstone Per-Project Work</div>
+                <div class="thread-strategy">
+                    Current State: Reached out to former boss. Awaiting response.<br>
+                    Strategy: Reactive thread - availability for freelance writing/editing projects as they arise. This supplements but doesn't replace primary income development.<br>
+                    Target: 1-2 projects per month if available.
+                </div>
+                <div class="thread-timeline">
+                    Weeks 1-2: Clarify availability | Ongoing: Respond to opportunities as they surface
+                </div>
+            </div>
+        </div>
+        
+        <div class="phase-divider">
+            <span class="phase-label">Phase 1: Foundation (Weeks 1-4)</span>
+        </div>
+        
+        <div class="weeks-grid">
+            <div class="week-card current">
+                <div class="week-number">Week 1</div>
+                <div class="week-focus">Set up thread registry, begin Etsy marketing research</div>
+                <div class="week-milestone">System Launch</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 2</div>
+                <div class="week-focus">Pinterest strategy implementation, design optimization</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 3</div>
+                <div class="week-focus">Launch fundraiser designs, initial marketing push</div>
+                <div class="week-milestone">Fundraiser Live</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 4</div>
+                <div class="week-focus">Analyze first month data, adjust strategy</div>
+                <div class="week-milestone milestone-warn">First Review</div>
+            </div>
+        </div>
+        
+        <div class="phase-divider">
+            <span class="phase-label">Phase 2: Growth (Weeks 5-8)</span>
+        </div>
+        
+        <div class="weeks-grid">
+            <div class="week-card">
+                <div class="week-number">Week 5</div>
+                <div class="week-focus">Scale what's working, test new product variations</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 6</div>
+                <div class="week-focus">Expand marketing channels, optimize conversions</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 7</div>
+                <div class="week-focus">Revenue stabilization efforts, consistency building</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 8</div>
+                <div class="week-focus">Second major review - assess revenue baseline</div>
+                <div class="week-milestone milestone-warn">Revenue Check</div>
+            </div>
+        </div>
+        
+        <div class="phase-divider">
+            <span class="phase-label">Phase 3: Decision & Stabilization (Weeks 9-12)</span>
+        </div>
+        
+        <div class="weeks-grid">
+            <div class="week-card">
+                <div class="week-number">Week 9</div>
+                <div class="week-focus">Assess income trajectory, explore additional options if needed</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 10</div>
+                <div class="week-focus">Decision point: Social Security application timing</div>
+                <div class="week-milestone milestone-critical">Critical Decision</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 11</div>
+                <div class="week-focus">Finalize post-leave income structure</div>
+            </div>
+            
+            <div class="week-card">
+                <div class="week-number">Week 12</div>
+                <div class="week-focus">Transition planning, sustainability assessment</div>
+                <div class="week-milestone milestone-critical">Leave Ends</div>
+            </div>
+        </div>
+        
+        <div class="escalation-points">
+            <h2>Thread Escalation Protocol</h2>
+            <p style="color: var(--text-dim); margin-bottom: 1.5rem;">
+                If threads aren't progressing, these are the automatic escalation triggers:
+            </p>
+            
+            <div class="escalation-item">
+                <div class="escalation-week">Week 4 Checkpoint</div>
+                <div class="escalation-action">
+                    If Etsy revenue &lt; $50 total → Shift to alternate income thread (identify by Week 3)
+                </div>
+            </div>
+            
+            <div class="escalation-item">
+                <div class="escalation-week">Week 6 Checkpoint</div>
+                <div class="escalation-action">
+                    If Moonstone hasn't responded → Explore 1-2 additional freelance platforms
+                </div>
+            </div>
+            
+            <div class="escalation-item">
+                <div class="escalation-week">Week 8 Checkpoint</div>
+                <div class="escalation-action">
+                    If revenue &lt; $150/month trajectory → Begin Social Security disability paperwork research
+                </div>
+            </div>
+            
+            <div class="escalation-item">
+                <div class="escalation-week">Week 10 Decision</div>
+                <div class="escalation-action">
+                    Final assessment: Continue side income development OR file for Social Security disability
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Calculate current week and update display
+        const startDate = new Date('2025-02-14'); // Adjust to actual medical leave start
+        const today = new Date();
+        const diffTime = Math.abs(today - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const currentWeek = Math.min(Math.ceil(diffDays / 7), 12);
+        const weeksRemaining = 12 - currentWeek + 1;
+        
+        document.getElementById('weeks-remaining').textContent = weeksRemaining;
+        
+        // Highlight current week
+        const weekCards = document.querySelectorAll('.week-card');
+        weekCards.forEach((card, index) => {
+            const weekNum = index + 1;
+            if (weekNum < currentWeek) {
+                card.classList.add('past');
+            } else if (weekNum === currentWeek) {
+                card.classList.add('current');
+            }
+        });
+    </script>
+</body>
+</html>
