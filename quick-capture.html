@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Capture | Brian's System</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fdfbf7; --card: #fff; --hover: #f5f3ef;
+            --text: #1a1a1a; --text-dim: #666; 
+            --border: #d4d0c8; --border-heavy: #a8a499;
+            --green: #2d7a4f; --blue: #2563a8; --accent: #8b6f47; --red: #b83b2f;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'IBM Plex Mono', monospace; background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-heavy); }
+        h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1rem; }
+        .nav-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .nav-link { font-size: 0.8rem; color: var(--blue); text-decoration: none; padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: 3px; background: var(--card); }
+        .nav-link:hover { border-color: var(--blue); background: var(--hover); }
+        .capture-box { background: var(--card); border: 2px solid var(--border-heavy); border-radius: 8px; padding: 2rem; margin-bottom: 2rem; }
+        .capture-input { width: 100%; background: var(--bg); border: 2px solid var(--border); padding: 1rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 1rem; resize: vertical; min-height: 80px; }
+        .capture-input:focus { outline: none; border-color: var(--accent); }
+        .capture-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; padding: 1rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+        .capture-btn:hover { background: var(--text); }
+        .inbox-section { margin-top: 3rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .section-header h2 { font-size: 1.3rem; }
+        .inbox-count { font-size: 0.8rem; padding: 0.25rem 0.75rem; background: var(--green); color: white; border-radius: 12px; }
+        .inbox-item { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem; margin-bottom: 0.75rem; }
+        .item-text { margin-bottom: 0.75rem; }
+        .item-time { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.75rem; }
+        .item-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .item-btn { font-size: 0.75rem; padding: 0.3rem 0.75rem; border: 1px solid var(--border); background: var(--card); color: var(--text-dim); border-radius: 3px; cursor: pointer; }
+        .item-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .item-btn.delete { color: var(--red); border-color: var(--red); }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-dim); font-style: italic; }
+        .helper-text { font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card); border: 2px solid var(--border-heavy); border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%; }
+        .modal-header { font-size: 1.3rem; margin-bottom: 1rem; color: var(--accent); font-weight: 600; }
+        .modal-text { margin-bottom: 1.5rem; color: var(--text-dim); font-size: 0.9rem; }
+        .modal-item { background: var(--bg); padding: 1rem; border-radius: 4px; margin-bottom: 1rem; border-left: 3px solid var(--blue); }
+        .form-label { display: block; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem; font-weight: 600; }
+        .form-select { width: 100%; background: var(--bg); border: 2px solid var(--border); padding: 0.75rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; }
+        .form-select:focus { outline: none; border-color: var(--accent); }
+        .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+        .btn-primary { flex: 1; background: var(--accent); color: var(--bg); border: none; padding: 0.75rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; font-weight: 600; }
+        .btn-primary:hover { background: var(--text); }
+        .btn-secondary { flex: 1; background: var(--card); color: var(--text-dim); border: 2px solid var(--border-heavy); padding: 0.75rem; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; cursor: pointer; }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Quick Capture</h1>
+            <p class="subtitle">Throw it in the inbox. Process it later.</p>
+            <div class="nav-links">
+                <a href="thread-registry.html" class="nav-link">📋 Threads</a>
+                <a href="strategic-life-map.html" class="nav-link">🗺️ Strategy</a>
+                <a href="income-map.html" class="nav-link">📊 Income</a>
+                <a href="index.html" class="nav-link">← Home</a>
+            </div>
+        </header>
+        
+        <div class="capture-box">
+            <textarea 
+                class="capture-input" 
+                id="capture-input" 
+                placeholder="Oil change for car&#10;Call dentist&#10;Research new Etsy product ideas&#10;&#10;Just type and hit Enter or click Capture..."
+                autofocus
+            ></textarea>
+            <p class="helper-text">💡 One item per line, or just one quick thought. Don't overthink it.</p>
+            <button class="capture-btn" onclick="captureItems()">Capture</button>
+        </div>
+        
+        <div class="inbox-section">
+            <div class="section-header">
+                <h2>Inbox</h2>
+                <span class="inbox-count" id="inbox-count">0</span>
+            </div>
+            <div id="inbox-list">
+                <div class="empty-state">Nothing in the inbox yet. You're all caught up!</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="goal-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Add to Goal</h2>
+            <p class="modal-text">Select which goal to add this item to:</p>
+            <div class="modal-item" id="modal-item-preview"></div>
+            <div>
+                <label class="form-label">Choose Goal</label>
+                <select class="form-select" id="goal-select">
+                    <option value="">Select a goal...</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="confirmAddToGoal()">Add to Goal</button>
+                <button class="btn-secondary" onclick="closeGoalModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let data = { threads: [], activeSlots: {}, strategicMap: { domains: [] }, inbox: [] };
+        let token = localStorage.getItem('github_token');
+        let gistId = localStorage.getItem('gist_id');
+        
+        async function load() {
+            if (!token || !gistId) {
+                // No sync - use localStorage only
+                const saved = localStorage.getItem('quick_capture_inbox');
+                if (saved) data.inbox = JSON.parse(saved);
+                render();
+                return;
+            }
+            
+            try {
+                const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (!r.ok) throw new Error('Load failed');
+                const d = await r.json();
+                data = JSON.parse(d.files['data.json'].content);
+                if (!data.inbox) data.inbox = [];
+                render();
+            } catch (e) {
+                console.error(e);
+                // Fallback to localStorage
+                const saved = localStorage.getItem('quick_capture_inbox');
+                if (saved) data.inbox = JSON.parse(saved);
+                render();
+            }
+        }
+        
+        async function save() {
+            // Always save to localStorage as backup
+            localStorage.setItem('quick_capture_inbox', JSON.stringify(data.inbox));
+            
+            if (!token || !gistId) return;
+            
+            try {
+                await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: { 'data.json': { content: JSON.stringify(data, null, 2) } } })
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        async function captureItems() {
+            const input = document.getElementById('capture-input');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            // Split by newlines, add each as separate item
+            const items = text.split('\n').filter(line => line.trim());
+            
+            items.forEach(item => {
+                data.inbox.push({
+                    id: Date.now() + Math.random(), // Ensure unique IDs
+                    text: item.trim(),
+                    captured: new Date().toISOString()
+                });
+            });
+            
+            input.value = '';
+            input.focus();
+            
+            await save();
+            render();
+        }
+        
+        async function deleteItem(id) {
+            data.inbox = data.inbox.filter(item => item.id !== id);
+            await save();
+            render();
+        }
+        
+        async function makeThread(id) {
+            const item = data.inbox.find(i => i.id === id);
+            if (!item) return;
+            
+            // Pass to thread registry
+            const params = new URLSearchParams({
+                fromCapture: 'true',
+                name: item.text,
+                status: 'Quick captured: ' + item.text
+            });
+            
+            // Delete from inbox
+            await deleteItem(id);
+            
+            // Navigate to thread registry
+            window.location.href = `thread-registry.html?${params.toString()}`;
+        }
+        
+        let currentItemId = null;
+        
+        function addToGoal(id) {
+            const item = data.inbox.find(i => i.id === id);
+            if (!item) return;
+            
+            currentItemId = id;
+            
+            // Show the item in modal
+            document.getElementById('modal-item-preview').textContent = item.text;
+            
+            // Populate goal dropdown
+            const select = document.getElementById('goal-select');
+            select.innerHTML = '<option value="">Select a goal...</option>';
+            
+            (data.strategicMap?.domains || []).forEach(domain => {
+                (domain.goals || []).forEach(goal => {
+                    const option = document.createElement('option');
+                    option.value = `${domain.id}:${goal.id}`;
+                    option.textContent = `${domain.name} → ${goal.name}`;
+                    select.appendChild(option);
+                });
+            });
+            
+            document.getElementById('goal-modal').classList.add('active');
+        }
+        
+        function closeGoalModal() {
+            document.getElementById('goal-modal').classList.remove('active');
+            currentItemId = null;
+        }
+        
+        async function confirmAddToGoal() {
+            const goalRef = document.getElementById('goal-select').value;
+            if (!goalRef) {
+                alert('Please select a goal');
+                return;
+            }
+            
+            const item = data.inbox.find(i => i.id === currentItemId);
+            if (!item) return;
+            
+            const [domainId, goalId] = goalRef.split(':');
+            const domain = (data.strategicMap?.domains || []).find(d => d.id === domainId);
+            const goal = domain?.goals?.find(g => g.id === goalId);
+            
+            if (!goal) {
+                alert('Goal not found');
+                return;
+            }
+            
+            // Add item to goal notes
+            const timestamp = new Date().toLocaleDateString();
+            const addition = `[${timestamp}] ${item.text}`;
+            
+            if (goal.notes && goal.notes.trim()) {
+                goal.notes += '\n' + addition;
+            } else {
+                goal.notes = addition;
+            }
+            
+            // Delete from inbox
+            data.inbox = data.inbox.filter(i => i.id !== currentItemId);
+            
+            closeGoalModal();
+            await save();
+            render();
+            
+            // Show success message
+            alert(`Added to ${domain.name} → ${goal.name}\n\nYou can view it in the Strategic Life Map.`);
+        }
+        
+        function render() {
+            const list = document.getElementById('inbox-list');
+            const count = document.getElementById('inbox-count');
+            
+            count.textContent = data.inbox.length;
+            
+            if (data.inbox.length === 0) {
+                list.innerHTML = '<div class="empty-state">Nothing in the inbox yet. You\'re all caught up!</div>';
+                return;
+            }
+            
+            // Sort by most recent first
+            const sorted = [...data.inbox].sort((a, b) => new Date(b.captured) - new Date(a.captured));
+            
+            list.innerHTML = sorted.map(item => {
+                const time = new Date(item.captured);
+                const now = new Date();
+                const diffMs = now - time;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                let timeText;
+                if (diffMins < 1) timeText = 'Just now';
+                else if (diffMins < 60) timeText = `${diffMins}m ago`;
+                else if (diffHours < 24) timeText = `${diffHours}h ago`;
+                else timeText = `${diffDays}d ago`;
+                
+                return `
+                    <div class="inbox-item">
+                        <div class="item-text">${item.text}</div>
+                        <div class="item-time">${timeText}</div>
+                        <div class="item-actions">
+                            <button class="item-btn" onclick="makeThread(${item.id})">→ Make Thread</button>
+                            <button class="item-btn" onclick="addToGoal(${item.id})">→ Add to Goal</button>
+                            <button class="item-btn delete" onclick="deleteItem(${item.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Allow Enter key to capture (without Shift)
+        document.getElementById('capture-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                captureItems();
+            }
+        });
+        
+        // Close modal on outside click
+        document.getElementById('goal-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'goal-modal') closeGoalModal();
+        });
+        
+        window.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>
