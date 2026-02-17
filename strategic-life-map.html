@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Life Map | Brian's System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafaf8; --card: #fff; --hover: #f5f3ef;
+            --text: #1a1a1a; --text-dim: #666; --text-light: #999;
+            --border: #d4d0c8; --border-heavy: #a8a499;
+            --green: #2d7a4f; --yellow: #c87c0a; --red: #b83b2f; --blue: #2563a8; --purple: #7c3aed;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Source Sans Pro', sans-serif; background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { border-bottom: 3px solid var(--border-heavy); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+        h1 { font-family: 'Merriweather', serif; font-size: 2.5rem; color: var(--blue); margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1rem; }
+        .nav-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .nav-link { font-size: 0.85rem; color: var(--blue); text-decoration: none; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--card); }
+        .nav-link:hover { border-color: var(--blue); background: var(--hover); }
+        .domains-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        .domain-card { background: var(--card); border: 2px solid var(--border); border-radius: 8px; padding: 1.5rem; }
+        .domain-card.income { border-left: 4px solid var(--green); }
+        .domain-card.health { border-left: 4px solid var(--red); }
+        .domain-card.home { border-left: 4px solid var(--yellow); }
+        .domain-card.financial { border-left: 4px solid var(--purple); }
+        .domain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+        .domain-name { font-family: 'Merriweather', serif; font-size: 1.5rem; font-weight: 700; }
+        .active-count { font-size: 0.75rem; padding: 0.25rem 0.75rem; background: var(--green); color: white; border-radius: 12px; font-weight: 600; }
+        .goal-item { margin-bottom: 1.5rem; padding-left: 1rem; border-left: 2px solid var(--border); }
+        .goal-item.has-thread { border-left-color: var(--blue); }
+        .goal-name { font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .thread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+        .sub-goals { list-style: none; margin: 0.5rem 0; padding-left: 1rem; }
+        .sub-goal { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.25rem; padding-left: 1rem; position: relative; }
+        .sub-goal::before { content: '→'; position: absolute; left: 0; color: var(--text-light); }
+        .goal-notes { background: #fffef5; border: 1px solid #e8e4d0; border-radius: 4px; padding: 0.75rem; margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-dim); font-style: italic; }
+        .goal-notes.empty { display: none; }
+        .goal-actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .goal-btn { font-size: 0.75rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border); background: var(--card); color: var(--text-dim); border-radius: 3px; cursor: pointer; }
+        .goal-btn:hover { border-color: var(--blue); color: var(--blue); }
+        .add-domain-btn { padding: 1rem 2rem; background: var(--blue); color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; margin: 2rem auto; display: block; }
+        .add-domain-btn:hover { background: var(--text); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card); border: 2px solid var(--border-heavy); border-radius: 8px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--blue); font-weight: 700; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .form-input, .form-textarea, .form-select { width: 100%; background: var(--bg); border: 2px solid var(--border); padding: 0.75rem; border-radius: 4px; }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--blue); }
+        .form-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+        .btn-primary { flex: 1; background: var(--blue); color: white; border: none; padding: 0.75rem; border-radius: 4px; font-weight: 600; cursor: pointer; }
+        .btn-primary:hover { background: var(--text); }
+        .btn-secondary { flex: 1; background: var(--card); color: var(--text-dim); border: 2px solid var(--border-heavy); padding: 0.75rem; border-radius: 4px; cursor: pointer; }
+        .btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
+        @media (max-width: 768px) { body { padding: 1rem; } .domains-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Strategic Life Map</h1>
+            <p class="subtitle">1-5 Year Goals • Connected to Daily Threads</p>
+            <div class="nav-links">
+                <a href="thread-registry.html" class="nav-link">📋 Thread Registry (Daily)</a>
+                <a href="income-map.html" class="nav-link">📊 90-Day Income Map</a>
+                <a href="index.html" class="nav-link">← Home</a>
+            </div>
+        </header>
+        
+        <div class="domains-grid" id="domains-container"></div>
+        <button class="add-domain-btn" onclick="openAddDomainModal()">+ Add New Domain</button>
+    </div>
+    
+    <div class="modal" id="domain-modal">
+        <div class="modal-content">
+            <h2 class="modal-header">Add New Domain</h2>
+            <form id="domain-form">
+                <div class="form-group">
+                    <label class="form-label">Domain Name</label>
+                    <input type="text" class="form-input" id="domain-name" placeholder="e.g., Income, Health, Creative" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Color Theme</label>
+                    <select class="form-select" id="domain-color" required>
+                        <option value="income">Green (Income/Growth)</option>
+                        <option value="health">Red (Health/Wellbeing)</option>
+                        <option value="home">Yellow (Home/Environment)</option>
+                        <option value="financial">Purple (Financial)</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Add Domain</button>
+                    <button type="button" class="btn-secondary" onclick="closeDomainModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="modal" id="goal-modal">
+        <div class="modal-content">
+            <h2 class="modal-header" id="goal-modal-title">Add New Goal</h2>
+            <form id="goal-form">
+                <div class="form-group">
+                    <label class="form-label">Goal Name</label>
+                    <input type="text" class="form-input" id="goal-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sub-Goals (one per line)</label>
+                    <textarea class="form-textarea" id="goal-subgoals" placeholder="First sub-goal&#10;Second sub-goal"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Brainstorm Notes & Ideas</label>
+                    <textarea class="form-textarea" id="goal-notes" placeholder="Ideas, strategies, things to try..."></textarea>
+                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">This is your planning space for this goal. Add ideas from brainstorming sessions with Claude.</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Timeline</label>
+                    <select class="form-select" id="goal-timeline">
+                        <option value="1-year">1 Year</option>
+                        <option value="2-year">2 Years</option>
+                        <option value="3-year">3 Years</option>
+                        <option value="5-year">5 Years</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Goal</button>
+                    <button type="button" class="btn-secondary" onclick="closeGoalModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let data = { threads: [], activeSlots: {}, strategicMap: { domains: [] } };
+        let token = localStorage.getItem('github_token');
+        let gistId = localStorage.getItem('gist_id');
+        let currentDomainId = null;
+        let currentGoalId = null;
+        
+        const initialDomains = [
+            {
+                id: 'income',
+                name: 'Supplemental Income',
+                color: 'income',
+                goals: [
+                    {
+                        id: 'etsy',
+                        name: 'Etsy',
+                        subgoals: ['T-shirts for fundraising', 'Cards', 'Mugs', 'New items', 'Fundraising (Michael J. Fox / Parkinson\'s Foundation)'],
+                        timeline: '1-year',
+                        notes: ''
+                    },
+                    {
+                        id: 'self-employment',
+                        name: 'Self-employment',
+                        subgoals: ['Construction knowledge/instruction/lead-manager', 'Craft options'],
+                        timeline: '2-year',
+                        notes: ''
+                    }
+                ]
+            },
+            {
+                id: 'home',
+                name: 'Clean out life/house',
+                color: 'home',
+                goals: [
+                    {
+                        id: 'sell-items',
+                        name: 'Sell items',
+                        subgoals: ['Tools', 'Snowblower (get running)', 'Hyundai (brakes)'],
+                        timeline: '1-year',
+                        notes: ''
+                    },
+                    {
+                        id: 'give-away',
+                        name: 'Give away items',
+                        subgoals: ['Clothing', 'Miscellaneous kitchen items', 'Miscellaneous household items'],
+                        timeline: '1-year',
+                        notes: ''
+                    },
+                    {
+                        id: 'sell-house',
+                        name: 'Sell house?',
+                        subgoals: ['See clean out progress', 'Research selling options (Full realtor vs Partial self-sell)'],
+                        timeline: '3-year',
+                        notes: ''
+                    }
+                ]
+            },
+            {
+                id: 'health',
+                name: 'Health',
+                color: 'health',
+                goals: [
+                    {
+                        id: 'adhd',
+                        name: 'ADHD',
+                        subgoals: ['Med change?', 'Continue coaching'],
+                        timeline: '1-year',
+                        notes: ''
+                    },
+                    {
+                        id: 'parkinsons',
+                        name: 'Parkinson\'s',
+                        subgoals: ['Exercise (Walking, E-biking)', 'Handi-cap placard'],
+                        timeline: '1-year',
+                        notes: ''
+                    }
+                ]
+            },
+            {
+                id: 'financial',
+                name: 'Financial',
+                color: 'financial',
+                goals: [
+                    {
+                        id: 'health-plan',
+                        name: 'Investigate health plan',
+                        subgoals: [],
+                        timeline: '1-year',
+                        notes: ''
+                    },
+                    {
+                        id: 'budget',
+                        name: 'Budget & Bill Review',
+                        subgoals: ['Cancel subscriptions', 'Review all bills'],
+                        timeline: '1-year',
+                        notes: ''
+                    }
+                ]
+            }
+        ];
+        
+        async function load() {
+            if (!token || !gistId) {
+                // Initialize with default data
+                if (!data.strategicMap.domains.length) {
+                    data.strategicMap.domains = initialDomains;
+                }
+                render();
+                return;
+            }
+            
+            try {
+                const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if (!r.ok) throw new Error('Load failed');
+                const d = await r.json();
+                data = JSON.parse(d.files['data.json'].content);
+                
+                // Initialize domains if empty
+                if (!data.strategicMap.domains.length) {
+                    data.strategicMap.domains = initialDomains;
+                    await save();
+                }
+                
+                render();
+            } catch (e) {
+                console.error(e);
+                // Fallback to initial data
+                if (!data.strategicMap.domains.length) {
+                    data.strategicMap.domains = initialDomains;
+                }
+                render();
+            }
+        }
+        
+        async function save() {
+            if (!token || !gistId) return;
+            try {
+                await fetch(`https://api.github.com/gists/${gistId}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: { 'data.json': { content: JSON.stringify(data, null, 2) } } })
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function render() {
+            const container = document.getElementById('domains-container');
+            container.innerHTML = '';
+            
+            data.strategicMap.domains.forEach(domain => {
+                const activeThreads = data.threads.filter(t => t.linkedGoalId?.startsWith(domain.id + ':')).length;
+                
+                const card = document.createElement('div');
+                card.className = `domain-card ${domain.color}`;
+                
+                let goalsHTML = '';
+                domain.goals.forEach(goal => {
+                    const hasThread = data.threads.some(t => t.linkedGoalId === `${domain.id}:${goal.id}`);
+                    
+                    let subgoalsHTML = '';
+                    if (goal.subgoals && goal.subgoals.length) {
+                        subgoalsHTML = '<ul class="sub-goals">' + goal.subgoals.map(s => `<li class="sub-goal">${s}</li>`).join('') + '</ul>';
+                    }
+                    
+                    let notesHTML = '';
+                    if (goal.notes && goal.notes.trim()) {
+                        notesHTML = `<div class="goal-notes">${goal.notes}</div>`;
+                    }
+                    
+                    goalsHTML += `
+                        <div class="goal-item ${hasThread ? 'has-thread' : ''}">
+                            <div class="goal-name">
+                                ${hasThread ? '<span class="thread-dot"></span>' : ''}
+                                ${goal.name}
+                            </div>
+                            ${subgoalsHTML}
+                            ${notesHTML}
+                            <div class="goal-actions">
+                                <button class="goal-btn" onclick="createThread('${domain.id}', '${goal.id}')">Create Thread</button>
+                                <button class="goal-btn" onclick="createThreadFromNotes('${domain.id}', '${goal.id}')">Thread from Notes</button>
+                                <button class="goal-btn" onclick="editGoal('${domain.id}', '${goal.id}')">Edit</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                card.innerHTML = `
+                    <div class="domain-header">
+                        <h2 class="domain-name">${domain.name}</h2>
+                        ${activeThreads > 0 ? `<span class="active-count">${activeThreads} active</span>` : ''}
+                    </div>
+                    ${goalsHTML}
+                    <div style="margin-top: 1rem;">
+                        <button class="goal-btn" onclick="addGoal('${domain.id}')">+ Add Goal</button>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+        
+        function openAddDomainModal() {
+            document.getElementById('domain-modal').classList.add('active');
+        }
+        
+        function closeDomainModal() {
+            document.getElementById('domain-modal').classList.remove('active');
+        }
+        
+        function closeGoalModal() {
+            document.getElementById('goal-modal').classList.remove('active');
+        }
+        
+        function addGoal(domainId) {
+            currentDomainId = domainId;
+            currentGoalId = null;
+            document.getElementById('goal-modal-title').textContent = 'Add New Goal';
+            document.getElementById('goal-form').reset();
+            document.getElementById('goal-modal').classList.add('active');
+        }
+        
+        function editGoal(domainId, goalId) {
+            currentDomainId = domainId;
+            currentGoalId = goalId;
+            
+            const domain = data.strategicMap.domains.find(d => d.id === domainId);
+            const goal = domain?.goals.find(g => g.id === goalId);
+            if (!goal) return;
+            
+            document.getElementById('goal-modal-title').textContent = 'Edit Goal';
+            document.getElementById('goal-name').value = goal.name;
+            document.getElementById('goal-subgoals').value = goal.subgoals.join('\n');
+            document.getElementById('goal-notes').value = goal.notes || '';
+            document.getElementById('goal-timeline').value = goal.timeline;
+            document.getElementById('goal-modal').classList.add('active');
+        }
+        
+        function createThread(domainId, goalId) {
+            const domain = data.strategicMap.domains.find(d => d.id === domainId);
+            const goal = domain?.goals.find(g => g.id === goalId);
+            if (!goal) return;
+            
+            // Pass goal info to thread registry via URL
+            const params = new URLSearchParams({
+                fromGoal: `${domainId}:${goalId}`,
+                name: goal.name,
+                domain: domain.name,
+                status: goal.notes || 'Working on: ' + goal.name
+            });
+            window.location.href = `thread-registry.html?${params.toString()}`;
+        }
+        
+        function createThreadFromNotes(domainId, goalId) {
+            const domain = data.strategicMap.domains.find(d => d.id === domainId);
+            const goal = domain?.goals.find(g => g.id === goalId);
+            if (!goal) return;
+            
+            if (!goal.notes || !goal.notes.trim()) {
+                alert('This goal has no notes yet. Add brainstorm notes first, then create a thread from them.');
+                return;
+            }
+            
+            // Create thread with notes as the status
+            const params = new URLSearchParams({
+                fromGoal: `${domainId}:${goalId}`,
+                name: `${goal.name} - Action`,
+                domain: domain.name,
+                status: goal.notes,
+                action: 'First step from notes: [define specific 5-20 min action]'
+            });
+            window.location.href = `thread-registry.html?${params.toString()}`;
+        }
+        
+        document.getElementById('domain-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            data.strategicMap.domains.push({
+                id: Date.now().toString(),
+                name: document.getElementById('domain-name').value,
+                color: document.getElementById('domain-color').value,
+                goals: []
+            });
+            
+            closeDomainModal();
+            await save();
+            render();
+        });
+        
+        document.getElementById('goal-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const domain = data.strategicMap.domains.find(d => d.id === currentDomainId);
+            if (!domain) return;
+            
+            const subgoalsText = document.getElementById('goal-subgoals').value;
+            const subgoals = subgoalsText.split('\n').filter(s => s.trim()).map(s => s.trim());
+            
+            if (currentGoalId) {
+                // Edit existing
+                const goal = domain.goals.find(g => g.id === currentGoalId);
+                if (goal) {
+                    goal.name = document.getElementById('goal-name').value;
+                    goal.subgoals = subgoals;
+                    goal.notes = document.getElementById('goal-notes').value;
+                    goal.timeline = document.getElementById('goal-timeline').value;
+                }
+            } else {
+                // Add new
+                domain.goals.push({
+                    id: Date.now().toString(),
+                    name: document.getElementById('goal-name').value,
+                    subgoals: subgoals,
+                    timeline: document.getElementById('goal-timeline').value,
+                    notes: document.getElementById('goal-notes').value
+                });
+            }
+            
+            closeGoalModal();
+            await save();
+            render();
+        });
+        
+        ['domain-modal', 'goal-modal'].forEach(id => {
+            document.getElementById(id).addEventListener('click', (e) => {
+                if (e.target.id === id) document.getElementById(id).classList.remove('active');
+            });
+        });
+        
+        // Check for goal parameter in URL (coming from thread registry)
+        const urlParams = new URLSearchParams(window.location.search);
+        const goalParam = urlParams.get('goal');
+        if (goalParam) {
+            setTimeout(() => {
+                const [domainId, goalId] = goalParam.split(':');
+                const goalEl = document.querySelector(`[onclick="editGoal('${domainId}', '${goalId}')"]`);
+                if (goalEl) {
+                    goalEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    goalEl.parentElement.parentElement.style.background = '#fffef5';
+                    setTimeout(() => { goalEl.parentElement.parentElement.style.background = ''; }, 2000);
+                }
+            }, 500);
+        }
+        
+        window.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>
