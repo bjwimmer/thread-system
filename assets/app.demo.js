@@ -1,0 +1,2070 @@
+const BUILD_VERSION = "v53";
+const DEFAULT_ORIENTATION_TEXT = "Planner Orientation Layer — Implementation Blueprint v1.0\n\nThis document defines the calm, structured, orientation-first homepage layer for the existing planner system. It is an additive front-layer, not a rebuild. All existing planner pages and logic remain intact.\n\nCore Design Intent\n\nTone: Relaxed, creative, open.\nEmotional Effect: Structured stillness.\nFunction: Orientation before execution.\nRule: One continuous vertical layout. No collapsible sections above the fold.\n\nHomepage Structure (Top to Bottom)\n\n1. NORTH STAR (Locked Section)\n\nAnchoring Sentence (locked, editable only during scheduled review):\n\n\"I finish my life in peace — no debt left behind, no burden passed forward, living comfortably enough to create and care for myself.\"\n\nPractical Bullet Conditions (locked):\n\n• No consumer debt.\n\n• Housing path resolved and documented.\n\n• Home simplified and document-ready.\n\n• Income baseline stable with protected creative time.\n\n2. 90-DAY GATE (Current Season)\n\nHeader format: By [Insert Date]\n\n• Housing decision path chosen.\n\n• Debt strategy documented and active.\n\n• Minimum viable home clear established.\n\n3. THIS WEEK (Maximum 3 Commitments)\n\nOnly 1–3 commitments allowed. Each must have a clear 'done' definition.\n\nExample placeholders:\n\n• [Commitment 1]\n\n• [Commitment 2]\n\n• [Commitment 3]\n\n4. TODAY (One Lever Only)\n\nSingle action that advances one weekly commitment. No additional task lists visible on homepage.\n\nNavigation Rules\n\nAll deeper planner pages remain intact.\nA simple 'Home' link is added to each deeper page.\nHomepage remains the browser default start page.\nNo metrics, widgets, progress bars, or dashboards added.\n\nVisual Tone Guidelines\n\nBackground: Warm cream or soft neutral.\nText: Dark slate or charcoal (not pure black).\nAccent hierarchy:\n• Deep muted teal for North Star.\n• Warm clay/amber for 90-Day Gate.\n• Soft sage or gray-blue for Weekly.\n• Subtle highlight for Today.\nTypography: Soft serif for headings; clean sans-serif for body.\n\nGuardrails\n\n• Homepage must fit on one screen without scrolling.\n• North Star text remains locked except during scheduled review.\n• No new sections added without revisiting structure intentionally.\n• This page serves orientation, not tracking.";
+
+const DEFAULT_DOMAINS = ["Work","Financial","Home","Health","Personal","Tentative"];
+
+/* === planner-test safeguards === */
+const APP_FLAVOR = "planner-test";
+const DEFAULT_TEST_GIST_ID = "4364e296d9592d9953ce71ee346a2766";
+
+function ensureTestDefaults() {
+  try {
+    let cfg = null;
+    const raw = localStorage.getItem("planner.sync.v1");
+    if (raw) {
+      try { cfg = JSON.parse(raw); } catch(e) { cfg = {}; }
+    } else {
+      cfg = {};
+    }
+    if (!cfg.gistId) cfg.gistId = DEFAULT_TEST_GIST_ID;
+    localStorage.setItem("planner.sync.v1", JSON.stringify(cfg));
+  } catch(e) {}
+}
+
+function injectTestRibbon(){
+  try {
+    if (document.getElementById("testRibbon")) return;
+    const d = document.createElement("div");
+    d.id = "testRibbon";
+    d.textContent = "TEST MODE";
+    document.body.appendChild(d);
+  } catch(e) {}
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  ensureTestDefaults();
+  injectTestRibbon();
+});
+/* === end planner-test safeguards === */
+
+console.log('Planner build', BUILD_VERSION);
+
+function escHtml(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+function esc(s){ return escHtml(s); }
+
+// --- Navigation ---
+const NAV_ITEMS = [
+  { href: "index.html", label: "Map" },
+  { href: "quick-capture.html", label: "⚡ Quick Capture" },
+  { href: "thread-registry.html", label: "Thread Registry" },
+  { href: "strategic-life-map.html", label: "Strategic Life Map" },
+  { href: "long-view.html", label: "🔭 Long View" },
+  { href: "how-this-works.html", label: "How This Works" },
+];
+
+function ensureTopbarNav(){
+  try{
+    const nav = document.querySelector(".topbar .nav");
+    if(!nav) return;
+    nav.innerHTML = NAV_ITEMS.map(it => `<a data-nav href="${it.href}">${escHtml(it.label)}</a>`).join("");
+    const here = (location.pathname.split("/").pop() || "index.html").toLowerCase();
+    nav.querySelectorAll("a[data-nav]").forEach(a=>{
+      const href = (a.getAttribute("href")||"").toLowerCase();
+      if(href===here) a.classList.add("active");
+    });
+  }catch(e){}
+}
+
+// --- Debug ---
+window.__plannerDebug = window.__plannerDebug || {
+  build: BUILD_VERSION, page: null, inits: {}, errors: [], scriptSrc: [],
+};
+
+function dbgRefresh(){
+  try{
+    window.__plannerDebug.build = BUILD_VERSION;
+    window.__plannerDebug.page = (document.body.getAttribute("data-page")||"").toLowerCase();
+    window.__plannerDebug.scriptSrc = [...document.scripts].map(s=>s.src).filter(Boolean);
+    const badge = document.querySelector("[data-build]");
+    if(badge) badge.textContent = BUILD_VERSION;
+  }catch(e){}
+}
+function dbgMarkInit(name){
+  try{ window.__plannerDebug.inits[name] = (new Date()).toISOString(); }catch(e){}
+}
+function dbgAddError(err){
+  try{
+    const msg = typeof err === "string" ? err : (err && err.message) ? err.message : String(err);
+    window.__plannerDebug.errors.push({ t: (new Date()).toISOString(), msg });
+    window.__plannerDebug.errors = window.__plannerDebug.errors.slice(-10);
+  }catch(e){}
+}
+window.addEventListener("error", (ev)=>{ dbgAddError(ev.error || ev.message || "error"); });
+window.addEventListener("unhandledrejection", (ev)=>{ dbgAddError(ev.reason || "promise rejection"); });
+
+// --- Storage keys ---
+const STORE_KEY = "planner-demo.data.v1";
+const DEMO_DATA = {"meta": {"createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "title": "Demo Planner"}, "inbox": [], "trinkets": [{"id": "tr1", "text": "Pick up groceries", "status": "open", "createdAt": "2026-03-01T12:00:00.000Z"}, {"id": "tr2", "text": "Call dentist for appointment", "status": "open", "createdAt": "2026-03-01T12:00:00.000Z"}, {"id": "tr3", "text": "Return library books", "status": "done", "createdAt": "2026-03-01T12:00:00.000Z", "doneAt": "2026-03-01T14:00:00.000Z"}], "weekly": {"slot1": "th1", "slot2": "th2", "weekOf": "2026-03-01"}, "threads": [{"id": "th1", "title": "Find new job", "status": "active", "domain": "Work", "nextAction": "Update resume with last 2 years of experience", "notes": "Focus on roles that match my skills and energy level. Reach out to 2 contacts this week.", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": []}, {"id": "th2", "title": "Pay down credit card", "status": "active", "domain": "Financial", "nextAction": "Log into account and check current balance", "notes": "Target: $200 extra per month toward principal. Set up auto-pay reminder.", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": []}, {"id": "th3", "title": "Start morning walks", "status": "active", "domain": "Health", "nextAction": "Set alarm for 7am and lay out shoes tonight", "notes": "Even 15 minutes counts. Don't let perfect be the enemy of good.", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": []}, {"id": "th4", "title": "Apartment search", "status": "active", "domain": "Home", "nextAction": "Browse 3 listings and note pros and cons", "notes": "Budget: $1200/mo max. Need parking. Dog-friendly preferred.", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": []}, {"id": "th5", "title": "Write short story", "status": "paused", "domain": "Personal", "nextAction": "Re-read last draft and write one new paragraph", "notes": "The liminal space story. Don't overthink it \u2014 just get words on the page.", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": []}], "lifeMap": {"domains": ["Work", "Financial", "Home", "Health", "Personal", "Tentative"], "defaultUrgency": "medium", "archivedGoals": [], "horizons": {"week": {"label": "This Week", "domains": {"Work": [{"id": "g1", "title": "Find new job", "notes": "Update resume first", "urgency": "high", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th1"]}], "Financial": [], "Home": [], "Health": [{"id": "g2", "title": "Walk 3x this week", "notes": "", "urgency": "medium", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th3"]}], "Personal": [], "Tentative": []}}, "month": {"label": "This Month", "domains": {"Work": [{"id": "g3", "title": "Send 5 job applications", "notes": "", "urgency": "high", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th1"]}], "Financial": [{"id": "g4", "title": "Pay down credit card $200", "notes": "", "urgency": "medium", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th2"]}], "Home": [{"id": "g5", "title": "Tour 3 apartments", "notes": "", "urgency": "medium", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th4"]}], "Health": [], "Personal": [], "Tentative": []}}, "quarter": {"label": "3 Months", "domains": {"Work": [{"id": "g6", "title": "Land a new job", "notes": "The big one.", "urgency": "high", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th1"]}], "Financial": [{"id": "g7", "title": "Reduce debt by $600", "notes": "", "urgency": "medium", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th2"]}], "Home": [{"id": "g8", "title": "Move into new place", "notes": "", "urgency": "medium", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th4"]}], "Health": [{"id": "g9", "title": "Build daily walk habit", "notes": "", "urgency": "low", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th3"]}], "Personal": [{"id": "g10", "title": "Finish short story draft", "notes": "", "urgency": "low", "createdAt": "2026-03-01T12:00:00.000Z", "updatedAt": "2026-03-01T12:00:00.000Z", "linkedThreadIds": ["th5"]}], "Tentative": []}}}}, "longView": {"objectives": [{"id": "debt", "label": "No consumer debt", "goals": ["Pay off credit card by end of year", "Build $500 emergency fund", ""]}, {"id": "housing", "label": "Clear housing path", "goals": ["Move into stable apartment", "Set up home office space", ""]}, {"id": "income", "label": "Sustainable, sufficient income", "goals": ["Land full-time job in my field", "Establish 3-month financial runway", ""]}, {"id": "creative", "label": "Time and space for creative work", "goals": ["Finish short story draft", "Start a regular writing practice", ""]}, {"id": "health", "label": "Health managed deliberately", "goals": ["Walk daily for 30 days straight", "Schedule annual checkup", ""]}, {"id": "tentative", "label": "Tentative", "goals": ["", "", ""]}]}, "morningMap": {"northStar": "Build a stable, creative life where my work and values align.", "focusStrip": "Land a job. Move into a good place.", "scratchpad": "", "sparkCapture": ""}};
+
+function loadDemoData(){
+  localStorage.setItem(STORE_KEY, JSON.stringify({...DEMO_DATA, meta:{...DEMO_DATA.meta, updatedAt: nowIso()}}));
+  location.reload();
+}
+
+function isDemoEmpty(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if(!raw) return true;
+  try{
+    const st = JSON.parse(raw);
+    return !st.threads || st.threads.length === 0;
+  }catch(e){ return true; }
+}
+const SYNC_KEY  = "planner-test.sync.v1";
+const AUTO_PULL_SESSION_KEY = "planner.autoPulled.v1";
+const GIST_FILENAME = "planner-data.json";
+
+function nowIso(){ return new Date().toISOString(); }
+function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
+
+// --- Toast ---
+function toast(msg, ms=1800){
+  try{
+    let t = document.getElementById('__toast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = '__toast';
+      t.style.cssText = 'position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;z-index:99999;pointer-events:none;opacity:0;transition:opacity .2s';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t.__to);
+    t.__to = setTimeout(()=>{ t.style.opacity='0'; }, ms);
+  }catch(e){}
+}
+
+// --- Life Map defaults ---
+function defaultLifeMap(){
+  const domains = DEFAULT_DOMAINS.slice();
+  const emptyDomainsObj = ()=> Object.fromEntries(domains.map(d=>[d, []]));
+  const lm = {
+    version: 2,
+    domains,
+    defaultUrgency: "medium",
+    horizons: {
+      week:   { label: "This Week",   domains: emptyDomainsObj() },
+      month:  { label: "This Month",  domains: emptyDomainsObj() },
+      quarter:{ label: "3 Months",    domains: emptyDomainsObj() }
+    }
+  };
+
+  const now = nowIso();
+  const mkGoal = (title, notes)=>({ id: uid(), title, notes: notes||"", urgency:"medium", createdAt: now, updatedAt: now, linkedThreadIds: [] });
+
+  lm.horizons.quarter.domains["Financial"].push(
+    mkGoal("Etsy", "T-shirts for fundraising\nCards\nMugs\nNew items\nFundraising (Michael J. Fox / Parkinson's Foundation)"),
+    mkGoal("Self-employment", "Construction knowledge / instruction / lead-manager\nCraft options")
+  );
+  lm.horizons.quarter.domains["Financial"].push(
+    mkGoal("Investigate health plan", ""),
+    mkGoal("Budget & Bill Review", "Cancel subscriptions\nReview all bills")
+  );
+  lm.horizons.quarter.domains["Home"].push(
+    mkGoal("Sell items", "Tools\nSnowblower (get running)\nHyundai (brakes)"),
+    mkGoal("Give away items", "Clothing\nMiscellaneous kitchen items\nMiscellaneous household items"),
+    mkGoal("Sell house?", "See clean out progress\nResearch selling options (Full realtor vs Partial self-sell)")
+  );
+  lm.horizons.quarter.domains["Health"].push(
+    mkGoal("ADHD", "Med change?\nContinue coaching"),
+    mkGoal("Parkinson's", "Exercise (Walking, E-biking)\nHandicap placard")
+  );
+  return lm;
+}
+
+function ensureLifeMapSchema(st){
+  if(!st.lifeMap){ st.lifeMap = defaultLifeMap(); return; }
+  if(st.lifeMap && Array.isArray(st.lifeMap.domains) && !st.lifeMap.horizons){
+    const old = st.lifeMap.domains;
+    st.lifeMap = defaultLifeMap();
+    old.forEach(d=>{
+      const name = (d.name||"").toLowerCase();
+      const notes = (d.notes||"").trim();
+      if(!notes) return;
+      const mapTo = name.includes("health") ? "Health"
+        : (name.includes("home") ? "Home"
+        : (name.includes("work") ? "Work"
+        : (name.includes("income")||name.includes("work") ? "Income"
+        : (name.includes("fin") ? "Financial" : null))));
+      if(mapTo){
+        st.lifeMap.horizons.quarter.domains[mapTo].unshift({
+          id: uid(), title: "Imported notes", notes, urgency:"medium",
+          createdAt: nowIso(), updatedAt: nowIso(), linkedThreadIds:[]
+        });
+      }
+    });
+    return;
+  }
+  if(!st.lifeMap.version || st.lifeMap.version < 2){
+    const fresh = defaultLifeMap();
+    st.lifeMap = { ...fresh, ...st.lifeMap, version: 2 };
+  }
+  if(!st.lifeMap.horizons){ st.lifeMap.horizons = defaultLifeMap().horizons; }
+  if(!st.lifeMap.domains){ st.lifeMap.domains = DEFAULT_DOMAINS.slice(); }
+  const domains = st.lifeMap.domains;
+  const ensureDomains = (h)=>{
+    if(!h.domains) h.domains = {};
+    domains.forEach(d=>{ if(!Array.isArray(h.domains[d])) h.domains[d]=[]; });
+  };
+  ensureDomains(st.lifeMap.horizons.week ||= {label:"This Week", domains:{}});
+  ensureDomains(st.lifeMap.horizons.month ||= {label:"This Month", domains:{}});
+  ensureDomains(st.lifeMap.horizons.quarter ||= {label:"3 Months", domains:{}});
+}
+
+function normalizeLifeMap(lm){
+  if(!lm || typeof lm !== 'object') return defaultLifeMap();
+  if(lm.horizons && typeof lm.horizons === 'object'){
+    if(lm.horizons.threeMonths && !lm.horizons.quarter){
+      lm.horizons.quarter = lm.horizons.threeMonths;
+      delete lm.horizons.threeMonths;
+    }
+    if(!lm.domains) lm.domains = DEFAULT_DOMAINS.slice();
+    if(Array.isArray(lm.domains)){
+      lm.domains = lm.domains
+        .map(d => (typeof d === 'string') ? d : (d?.name || d?.title || d?.domain || ""))
+        .map(s => String(s||"").trim())
+        .filter(Boolean);
+    }
+    if(!lm.defaultUrgency) lm.defaultUrgency = "medium";
+    const ensureH = (key, title) => {
+      if(!lm.horizons[key] || typeof lm.horizons[key] !== 'object') lm.horizons[key] = { label: title, domains: {} };
+      if(!lm.horizons[key].label) lm.horizons[key].label = title;
+      if(!lm.horizons[key].domains || typeof lm.horizons[key].domains !== 'object') lm.horizons[key].domains = {};
+    };
+    ensureH('week', 'This Week');
+    ensureH('month', 'This Month');
+    ensureH('quarter', '3 Months');
+    const horizonKeys = ['week','month','quarter'];
+    lm.domains.forEach(domainName=>{
+      horizonKeys.forEach(hk=>{
+        if(!Array.isArray(lm.horizons[hk].domains[domainName])) lm.horizons[hk].domains[domainName] = [];
+      });
+    });
+    return lm;
+  }
+  if(lm.domains && !Array.isArray(lm.domains) && typeof lm.domains === 'object' && !lm.horizons){
+    const fresh = defaultLifeMap();
+    fresh.horizons.quarter.domains = Object.assign(fresh.horizons.quarter.domains, lm.domains);
+    return fresh;
+  }
+  if(Array.isArray(lm.domains) && !lm.horizons){
+    const fresh = defaultLifeMap();
+    try{
+      lm.domains.forEach(d=>{
+        const name = d.name || d.title || d.domain;
+        if(!name) return;
+        const normName = String(name).trim();
+        const list = d.goals || d.items || [];
+        if(!Array.isArray(list)) return;
+        list.forEach(g=>{
+          const title = g.title || g.name;
+          if(!title) return;
+          const notesArr = g.notes || g.sub || g.items || [];
+          const notes = Array.isArray(notesArr) ? notesArr.join("\n") : (g.notesText || "");
+          const now = nowIso();
+          fresh.horizons.quarter.domains[normName] = fresh.horizons.quarter.domains[normName] || [];
+          fresh.horizons.quarter.domains[normName].push({ id: uid(), title: String(title), notes: notes||"", urgency: (g.urgency||"medium"), createdAt: now, updatedAt: now, linkedThreadIds: [] });
+        });
+      });
+      return fresh;
+    }catch(e){ return fresh; }
+  }
+  return defaultLifeMap();
+}
+
+function defaultState(){
+  return {
+    meta: { createdAt: nowIso(), updatedAt: nowIso(), title: "Planner" },
+    inbox: [],
+    threads: [],
+    weekly: { slot1: null, slot2: null, weekOf: null },
+    lifeMap: defaultLifeMap(),
+    incomeMap: { startDate: null },
+    trinkets: [],
+    longView: {
+      objectives: [
+        { id:"debt",     label:"No consumer debt",                goals:["","",""] },
+        { id:"housing",  label:"Clear housing path",              goals:["","",""] },
+        { id:"income",   label:"Sustainable, sufficient income",  goals:["","",""] },
+        { id:"creative", label:"Time and space for creative work",goals:["","",""] },
+        { id:"health",   label:"Health managed deliberately",     goals:["","",""] },
+      ]
+    }
+  };
+}
+
+function normalizeStatus(s){
+  const v = (s ?? "").toString().trim().toLowerCase();
+  if(!v) return "active";
+  if(v === "archive" || v === "archived" || v === "done" || v === "completed" || v === "complete") return "archived";
+  if(v.includes("archiv")) return "archived";
+  if(v.includes("done") || v.includes("complete")) return "archived";
+  return s;
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return defaultState();
+    const st = JSON.parse(raw);
+    if(!st.meta) st.meta = { createdAt: nowIso(), updatedAt: nowIso(), title:"Planner" };
+    if(!st.inbox) st.inbox = [];
+    if(!st.threads) st.threads = [];
+    if(!st.weekly) st.weekly = { slot1:null, slot2:null, weekOf:null };
+    st.lifeMap = normalizeLifeMap(st.lifeMap);
+    if(!st.incomeMap) st.incomeMap = { startDate:null };
+    if(!st.trinkets) st.trinkets = [];
+    if(!st.lifeMap.archivedGoals) st.lifeMap.archivedGoals = [];
+
+    // Migrate: merge Income domain into Financial
+    if(st.lifeMap && st.lifeMap.horizons){
+      const hKeys = ['week','month','quarter'];
+      for(const hk of hKeys){
+        const hDomains = st.lifeMap.horizons[hk]?.domains;
+        if(!hDomains) continue;
+        if(hDomains['Income'] && hDomains['Income'].length){
+          if(!hDomains['Financial']) hDomains['Financial'] = [];
+          hDomains['Financial'].push(...hDomains['Income']);
+        }
+        delete hDomains['Income'];
+        // Add Tentative if missing
+        if(!hDomains['Tentative']) hDomains['Tentative'] = [];
+      }
+      // Remove Income from domains list, replace with Tentative if needed
+      if(Array.isArray(st.lifeMap.domains)){
+        st.lifeMap.domains = st.lifeMap.domains.filter(d=>d!=='Income');
+        if(!st.lifeMap.domains.includes('Tentative')) st.lifeMap.domains.push('Tentative');
+        if(!st.lifeMap.domains.includes('Financial')) st.lifeMap.domains.push('Financial');
+      }
+    }
+    // Migrate threads: Income domain → Financial
+    if(Array.isArray(st.threads)){
+      st.threads.forEach(t=>{ if(t.domain==='Income') t.domain='Financial'; });
+    }
+    if(!st.longView) st.longView = {
+      objectives: [
+        { id:"debt",      label:"No consumer debt",                goals:["","",""] },
+        { id:"housing",   label:"Clear housing path",              goals:["","",""] },
+        { id:"income",    label:"Sustainable, sufficient income",  goals:["","",""] },
+        { id:"creative",  label:"Time and space for creative work",goals:["","",""] },
+        { id:"health",    label:"Health managed deliberately",     goals:["","",""] },
+        { id:"tentative", label:"Tentative",                       goals:["","",""] },
+      ]
+    };
+    // Add tentative objective if missing
+    if(!st.longView.objectives.find(o=>o.id==="tentative")){
+      st.longView.objectives.push({ id:"tentative", label:"Tentative", goals:["","",""] });
+    }
+    st.longView.objectives.forEach(o=>{ while(o.goals.length<3) o.goals.push(""); });
+    return st;
+  }catch(e){
+    console.warn("State load failed, resetting", e);
+    return defaultState();
+  }
+}
+
+function saveState(st){
+  st.meta.updatedAt = nowIso();
+  localStorage.setItem(STORE_KEY, JSON.stringify(st));
+}
+
+function setActiveNav(){
+  const path = (location.pathname.split("/").pop() || "index.html").toLowerCase();
+  document.querySelectorAll("[data-nav]").forEach(a=>{
+    const href = (a.getAttribute("href") || "").toLowerCase();
+    if(href.endsWith(path)) a.classList.add("active");
+  });
+}
+
+function renderStartFreshBtn(){
+  const existing = document.getElementById('startFreshBtn');
+  if(existing) return;
+  const btn = document.createElement('button');
+  btn.id = 'startFreshBtn';
+  btn.textContent = '↺ Start Fresh';
+  btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999;background:#fff;border:1px solid rgba(100,116,139,.35);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);transition:box-shadow .15s';
+  btn.onmouseenter = ()=>{ btn.style.boxShadow='0 4px 14px rgba(0,0,0,.18)'; };
+  btn.onmouseleave = ()=>{ btn.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'; };
+  btn.addEventListener('click', ()=>{
+    if(confirm('Reset everything back to the demo data?')){
+      localStorage.removeItem(STORE_KEY);
+      loadDemoData();
+    }
+  });
+  document.body.appendChild(btn);
+}
+
+function renderFooter(st){
+  const el = document.querySelector("[data-footer]");
+  if(!el) return;
+  el.innerHTML = `
+    <div>Stored locally in your browser · <span class="mono">${STORE_KEY}</span></div>
+    <div>Last saved: <span class="mono">${new Date(st.meta.updatedAt).toLocaleString()}</span></div>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+function mondayOf(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function ymd(d){
+  const pad=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function weekNumberFromStart(startYmd){
+  if(!startYmd) return null;
+  const start = new Date(startYmd + "T00:00:00");
+  const today = new Date();
+  const ms = today - start;
+  const weeks = Math.floor(ms / (1000*60*60*24*7)) + 1;
+  return weeks < 1 ? 1 : weeks;
+}
+
+function daysSince(dateStr){
+  if(!dateStr) return 999;
+  const dt = new Date(dateStr);
+  const now = new Date();
+  return (now - dt)/(1000*60*60*24);
+}
+
+// --- Export / Import ---
+function exportJson(){
+  const st = loadState();
+  ensureLifeMapSchema(st);
+  saveState(st);
+  const blob = new Blob([JSON.stringify(st,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "planner-backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJsonFromFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const parsed = JSON.parse(reader.result);
+        saveState(parsed);
+        resolve(parsed);
+      }catch(e){ reject(e); }
+    };
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// --- Sync ---
+function loadSync(){
+  try{ return JSON.parse(localStorage.getItem(SYNC_KEY) || "null"); }
+  catch{ return null; }
+}
+function saveSync(cfg){ localStorage.setItem(SYNC_KEY, JSON.stringify(cfg)); }
+function clearSync(){
+  localStorage.removeItem(SYNC_KEY);
+  sessionStorage.removeItem(AUTO_PULL_SESSION_KEY);
+}
+function isConnected(){
+  const cfg = loadSync();
+  return !!(cfg?.gistId && cfg?.token);
+}
+function parseIso(s){
+  const t = Date.parse(s || "");
+  return Number.isFinite(t) ? t : 0;
+}
+
+async function githubFetchGist(gistId, token){
+  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+    headers: { "Authorization": `token ${token}`, "Accept": "application/vnd.github+json" }
+  });
+  if(!res.ok) throw new Error(`Pull failed: ${res.status}`);
+  return await res.json();
+}
+
+function findPlannerFile(gistJson){
+  const files = Object.values(gistJson.files || {});
+  if(!files.length) return null;
+  return files.find(f => (f.filename || "") === GIST_FILENAME) || null;
+}
+
+async function githubPull({force=false} = {}){
+  const cfg = loadSync();
+  if(!cfg?.gistId || !cfg?.token) throw new Error("Not connected. Add Gist ID and token in Sync.");
+  const gist = await githubFetchGist(cfg.gistId, cfg.token);
+  const file = findPlannerFile(gist);
+  if(!file?.content) throw new Error(`${GIST_FILENAME} not found in this Gist.`);
+  const remoteState = JSON.parse(file.content);
+  const localState = loadState();
+  const remoteUpdated = parseIso(remoteState?.meta?.updatedAt);
+  const localUpdated  = parseIso(localState?.meta?.updatedAt);
+  if(force || remoteUpdated > localUpdated){
+    saveState(remoteState);
+    return {applied:true, reason: force ? "forced" : "remote-newer", remoteUpdated, localUpdated};
+  }
+  return {applied:false, reason:"local-newer-or-equal", remoteUpdated, localUpdated};
+}
+
+async function githubPush(){
+  const cfg = loadSync();
+  if(!cfg?.gistId || !cfg?.token) throw new Error("Not connected. Add Gist ID and token in Sync.");
+  const st = loadState();
+  ensureLifeMapSchema(st);
+  saveState(st);
+  const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+    method: "PATCH",
+    headers: { "Authorization": `token ${cfg.token}`, "Accept": "application/vnd.github+json" },
+    body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(st, null, 2) } } })
+  });
+  if(!res.ok) throw new Error(`Push failed: ${res.status}`);
+  return true;
+}
+
+function setSyncIndicator(){
+  const el = document.querySelector("[data-sync-indicator]");
+  if(!el) return;
+  if(isConnected()){
+    el.textContent = "● Connected";
+    el.style.color = "var(--good)";
+  } else {
+    el.textContent = "● Not connected";
+    el.style.color = "var(--muted)";
+  }
+}
+
+// --- Modal wiring ---
+function openModal(){
+  const back = document.getElementById("syncModalBackdrop");
+  if(back) back.style.display = "flex";
+}
+function closeModal(){
+  const back = document.getElementById("syncModalBackdrop");
+  if(back) back.style.display = "none";
+}
+function wireModal(){
+  const openBtn = document.querySelector("[data-open-sync]");
+  if(openBtn) openBtn.addEventListener("click", openModal);
+  document.querySelectorAll("[data-close-sync]").forEach(b=>b.addEventListener("click", closeModal));
+
+  const cfg = loadSync() || { gistId:"", token:"", autoPull:true };
+  const gistIdEl = document.getElementById("syncGistId");
+  const tokenEl  = document.getElementById("syncToken");
+  const autoEl   = document.getElementById("syncAutoPull");
+  const statusEl = document.getElementById("syncStatus");
+  if(gistIdEl) gistIdEl.value = cfg.gistId || "";
+  if(tokenEl)  tokenEl.value  = cfg.token  || "";
+  if(autoEl)   autoEl.checked = cfg.autoPull !== false;
+
+  const setStatus = (msg)=>{ if(statusEl) statusEl.textContent = msg; };
+
+  const saveBtn  = document.getElementById("syncSave");
+  const pullBtn  = document.getElementById("syncPull");
+  const forceBtn = document.getElementById("syncForcePull");
+  const pushBtn  = document.getElementById("syncPush");
+  const clearBtn = document.getElementById("syncClear");
+
+  if(saveBtn) saveBtn.onclick = ()=>{
+    saveSync({ gistId:(gistIdEl?.value||"").trim(), token:(tokenEl?.value||"").trim(), autoPull:!!(autoEl?.checked) });
+    setSyncIndicator(); setStatus("Saved.");
+  };
+  if(pullBtn) pullBtn.onclick = async ()=>{
+    setStatus("Pulling…");
+    try{
+      const r = await githubPull({force:false});
+      setStatus(r.applied ? "Pulled (applied remote state)." : "Pulled (kept local — local is newer).");
+      setTimeout(()=>location.reload(), 250);
+    }catch(e){ setStatus(e.message); }
+  };
+  if(forceBtn) forceBtn.onclick = async ()=>{
+    if(!confirm("Force Pull will overwrite local data with the Gist data. Continue?")) return;
+    setStatus("Force pulling…");
+    try{ await githubPull({force:true}); setStatus("Done. Reloading…"); setTimeout(()=>location.reload(), 250); }
+    catch(e){ setStatus(e.message); }
+  };
+  if(pushBtn) pushBtn.onclick = async ()=>{
+    setStatus("Pushing…");
+    try{ await githubPush(); setStatus("Pushed to Gist."); }
+    catch(e){ setStatus(e.message); }
+  };
+  if(clearBtn) clearBtn.onclick = ()=>{
+    if(!confirm("Clear sync settings on this device?")) return;
+    clearSync(); setSyncIndicator(); setStatus("Cleared.");
+  };
+}
+
+async function autoPullIfEnabled(){
+  const cfg = loadSync();
+  if(!(cfg?.gistId && cfg?.token && cfg.autoPull !== false)) return;
+  if(sessionStorage.getItem(AUTO_PULL_SESSION_KEY) === "1") return;
+  sessionStorage.setItem(AUTO_PULL_SESSION_KEY, "1");
+  try{
+    const r = await githubPull({force:false});
+    if(r.applied) setTimeout(()=>location.reload(), 200);
+  }catch(e){ console.warn("Auto-pull failed:", e); }
+}
+
+// --- Common init ---
+function initCommon(){
+  // Auto-load demo data on first visit
+  if(isDemoEmpty()){ loadDemoData(); return {}; }
+  const st = loadState();
+  ensureLifeMapSchema(st);
+  saveState(st);
+  setActiveNav();
+  renderFooter(st);
+  renderStartFreshBtn();
+  const expBtn = document.querySelector("[data-export]");
+  if(expBtn) expBtn.addEventListener("click", exportJson);
+  const impInput = document.querySelector("[data-import]");
+  if(impInput){
+    impInput.addEventListener("change", async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      try{ await importJsonFromFile(file); location.reload(); }
+      catch(err){ alert("Import failed. Make sure it's a valid backup JSON."); console.error(err); }
+    });
+  }
+  setSyncIndicator();
+  wireModal();
+  autoPullIfEnabled();
+  return st;
+}
+
+// --- Domain color class ---
+function domainClass(domainRaw){
+  const d = (domainRaw || "").trim().toLowerCase();
+  if(!d) return "domain-other";
+  if(d.includes("health")) return "domain-health";
+  if(d.includes("home") || d.includes("house")) return "domain-home";
+  if(d.includes("work") || d.includes("job") || d.includes("career") || d.includes("employ")) return "domain-work";
+  if(d.includes("financial") || d.includes("income") || d.includes("money") || d.includes("revenue") || d.includes("earn")) return "domain-financial";
+  if(d.includes("creative") || d.includes("meaning") || d.includes("writing") || d.includes("art")) return "domain-creative-meaning";
+  if(d.includes("personal") || d.includes("self")) return "domain-personal";
+  return "domain-other";
+}
+
+function cssEscape(s){
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/[^a-zA-Z0-9_\-]/g, "\\$&");
+}
+
+// =============================================================
+// --- Quick Capture ---
+// =============================================================
+function initQuickCapture(){
+  dbgMarkInit('quickCapture');
+  const st = initCommon();
+
+  const form    = document.querySelector("#captureForm");
+  const input   = document.querySelector("#captureText");
+  const list    = document.querySelector("#inboxList");
+  const clearBtn= document.querySelector("#archiveAll");
+
+  function render(){
+    const openItems = st.inbox.filter(i=>i.status!=="archived").sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    list.innerHTML = openItems.length ? openItems.map(i=>`
+      <div class="item">
+        <strong>${escapeHtml(i.text)}</strong>
+        <div class="meta">
+          <span class="pill">Inbox</span>
+          <span class="mono">${new Date(i.createdAt).toLocaleString()}</span>
+          <button class="btn" data-arch="${i.id}">Archive</button>
+        </div>
+      </div>
+    `).join("") : `<p class="small">Inbox is empty. Nice.</p>`;
+
+    list.querySelectorAll("[data-arch]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-arch");
+        const it = st.inbox.find(x=>String(x.id)===String(id));
+        if(it){ it.status="archived"; saveState(st); renderFooter(st); render(); }
+      });
+    });
+  }
+
+  form.addEventListener("submit",(e)=>{
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text) return;
+    st.inbox.push({ id: uid(), text, createdAt: nowIso(), status:"open" });
+    input.value="";
+    saveState(st); renderFooter(st); render();
+  });
+
+  clearBtn.addEventListener("click", ()=>{
+    st.inbox.forEach(i=>i.status="archived");
+    saveState(st); renderFooter(st); render();
+  });
+
+  render();
+
+  // --- Trinket List ---
+  const trinketInput   = document.getElementById('trinketInput');
+  const trinketAdd     = document.getElementById('trinketAdd');
+  const trinketActive  = document.getElementById('trinketActive');
+  const trinketDone    = document.getElementById('trinketDone');
+  const trinketDoneSec = document.getElementById('trinketDoneSection');
+  const trinketClear   = document.getElementById('trinketClearDone');
+
+  function renderTrinkets(){
+    if(!trinketActive) return;
+    const active = st.trinkets.filter(t=>t.status==='open');
+    const done   = st.trinkets.filter(t=>t.status==='done');
+
+    trinketActive.innerHTML = active.length ? active.map(t=>`
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(0,0,0,.06)">
+        <input type="checkbox" data-trinket-check="${t.id}" style="width:18px;height:18px;cursor:pointer;flex-shrink:0"/>
+        <span style="flex:1; font-size:14px">${escapeHtml(t.text)}</span>
+        <button class="btn mini" data-trinket-del="${t.id}" style="color:#ef4444">✕</button>
+      </div>
+    `).join('') : `<div class="small muted" style="padding:8px 0">No trinkets yet. Add something small.</div>`;
+
+    trinketDoneSec.style.display = done.length ? 'block' : 'none';
+    trinketDone.innerHTML = done.map(t=>`
+      <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid rgba(0,0,0,.04); opacity:.6">
+        <input type="checkbox" checked data-trinket-uncheck="${t.id}" style="width:18px;height:18px;cursor:pointer;flex-shrink:0"/>
+        <span style="flex:1; font-size:13px; text-decoration:line-through">${escapeHtml(t.text)}</span>
+        <button class="btn mini" data-trinket-del="${t.id}" style="color:#ef4444">✕</button>
+      </div>
+    `).join('');
+
+    // Check → move to done
+    trinketActive.querySelectorAll('[data-trinket-check]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const t = st.trinkets.find(x=>String(x.id)===cb.getAttribute('data-trinket-check'));
+        if(t){ t.status='done'; t.doneAt=nowIso(); saveState(st); renderTrinkets(); }
+      });
+    });
+    // Uncheck → move back to open
+    trinketDone.querySelectorAll('[data-trinket-uncheck]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const t = st.trinkets.find(x=>String(x.id)===cb.getAttribute('data-trinket-uncheck'));
+        if(t){ t.status='open'; delete t.doneAt; saveState(st); renderTrinkets(); }
+      });
+    });
+    // Delete buttons
+    document.querySelectorAll('[data-trinket-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-trinket-del');
+        st.trinkets = st.trinkets.filter(x=>String(x.id)!==String(id));
+        saveState(st); renderTrinkets();
+      });
+    });
+  }
+
+  if(trinketAdd){
+    const addTrinket = ()=>{
+      const text = trinketInput.value.trim();
+      if(!text) return;
+      st.trinkets.push({ id: uid(), text, status:'open', createdAt: nowIso() });
+      trinketInput.value = '';
+      saveState(st); renderTrinkets();
+    };
+    trinketAdd.addEventListener('click', addTrinket);
+    trinketInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addTrinket(); }});
+  }
+
+  if(trinketClear){
+    trinketClear.addEventListener('click', ()=>{
+      st.trinkets = st.trinkets.filter(t=>t.status!=='done');
+      saveState(st); renderTrinkets();
+    });
+  }
+
+  renderTrinkets();
+}
+
+// =============================================================
+// --- Thread Registry ---
+// =============================================================
+function initThreadRegistry(){
+  dbgMarkInit('threadRegistry');
+  const st = initCommon();
+
+  const inboxEl   = document.querySelector("#registryInbox");
+  const threadsEl = document.querySelector("#threadsList");
+  const form      = document.querySelector("#newThreadForm");
+
+  // Delegated archive handler — attached once, survives re-renders
+  threadsEl.addEventListener("click", e=>{
+    const btn = e.target.closest("[data-archive-thread]");
+    if(!btn) return;
+    const id = btn.getAttribute("data-archive-thread");
+    const th = st.threads.find(x=>String(x.id)===String(id));
+    if(!th) return;
+    th.status = "archived";
+    th.updatedAt = nowIso();
+    if(String(st.weekly?.slot1)===String(id)) st.weekly.slot1=null;
+    if(String(st.weekly?.slot2)===String(id)) st.weekly.slot2=null;
+    saveState(st); renderFooter(st); render();
+    toast("Thread archived.");
+  });
+  const focusThreadId = new URLSearchParams(location.search).get("focusThread");
+
+  // Focus glow style
+  (function(){
+    const styleId = "threadRegistryFocusGlow";
+    if(document.getElementById(styleId)) return;
+    const s = document.createElement("style");
+    s.id = styleId;
+    s.textContent = `.focus-glow { outline: 3px solid rgba(255,180,0,.55); border-radius:14px; }`;
+    document.head.appendChild(s);
+  })();
+
+  // Add thread button state
+  const addBtn    = form ? form.querySelector('button[type="submit"]') : null;
+  const titleInput= document.querySelector("#tTitle");
+  function updateAddBtn(){
+    if(!addBtn || !titleInput) return;
+    const ok = (titleInput.value || "").trim().length > 0;
+    addBtn.disabled = !ok;
+    addBtn.style.opacity = ok ? "1" : ".55";
+    addBtn.style.cursor  = ok ? "pointer" : "not-allowed";
+  }
+  if(titleInput){ titleInput.addEventListener("input", updateAddBtn); updateAddBtn(); }
+
+  // Domain dropdown
+  const domainSelect = document.querySelector("#tDomain");
+  if(domainSelect){
+    const domains = (st.lifeMap && Array.isArray(st.lifeMap.domains) && st.lifeMap.domains.length)
+      ? st.lifeMap.domains : DEFAULT_DOMAINS;
+    domainSelect.innerHTML = `<option value="">— none —</option>` +
+      domains.map(d => `<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join("");
+  }
+
+  const slot1Sel = document.querySelector("#slot1");
+  const slot2Sel = document.querySelector("#slot2");
+  const weekOfEl = document.querySelector("#weekOf");
+
+  function ensureWeekOf(){
+    const mon  = mondayOf(new Date());
+    const monY = ymd(mon);
+    if(st.weekly.weekOf !== monY){ st.weekly.weekOf = monY; saveState(st); }
+    if(weekOfEl) weekOfEl.textContent = mon.toLocaleDateString(undefined, {weekday:"long", year:"numeric", month:"short", day:"numeric"});
+  }
+
+  function threadOptionsHtml(selectedId){
+    return [`<option value="">— none —</option>`].concat(
+      st.threads
+        .filter(t=>t.status!=="archived")
+        .sort((a,b)=>a.title.localeCompare(b.title))
+        .map(t=>`<option value="${t.id}" ${String(t.id)===String(selectedId)?"selected":""}>${escapeHtml(t.title)}</option>`)
+    ).join("");
+  }
+
+  function renderWeeklySlots(){
+    ensureWeekOf();
+    if(slot1Sel){ slot1Sel.innerHTML = threadOptionsHtml(st.weekly.slot1); slot1Sel.onchange = ()=>{ st.weekly.slot1 = slot1Sel.value || null; saveState(st); renderFooter(st); render(); }; }
+    if(slot2Sel){ slot2Sel.innerHTML = threadOptionsHtml(st.weekly.slot2); slot2Sel.onchange = ()=>{ st.weekly.slot2 = slot2Sel.value || null; saveState(st); renderFooter(st); render(); }; }
+  }
+
+  function renderInbox(){
+    const openItems = st.inbox.filter(i=>i.status!=="archived").sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    inboxEl.innerHTML = openItems.length ? openItems.map(i=>`
+      <div class="item">
+        <strong>${escapeHtml(i.text)}</strong>
+        <div class="meta">
+          <span class="pill">Inbox</span>
+          <span class="mono">${new Date(i.createdAt).toLocaleString()}</span>
+          <button class="btn good" data-mkthread="${i.id}">Make thread</button>
+          <button class="btn" data-append="${i.id}">Append to…</button>
+          <button class="btn" data-arch="${i.id}">Archive</button>
+        </div>
+      </div>
+    `).join("") : `<p class="small">Inbox is empty.</p>`;
+
+    inboxEl.querySelectorAll("[data-arch]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-arch");
+        const it = st.inbox.find(x=>String(x.id)===String(id));
+        if(it){ it.status="archived"; saveState(st); renderFooter(st); render(); }
+      });
+    });
+    inboxEl.querySelectorAll("[data-mkthread]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-mkthread");
+        const it = st.inbox.find(x=>String(x.id)===String(id));
+        if(!it) return;
+        st.threads.push({ id: uid(), title: it.text.slice(0,80), status:"active", domain:"", nextAction:"", notes: it.text, createdAt: nowIso(), updatedAt: nowIso() });
+        it.status="archived";
+        saveState(st); renderFooter(st); render();
+      });
+    });
+    inboxEl.querySelectorAll("[data-append]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-append");
+        const it = st.inbox.find(x=>String(x.id)===String(id));
+        if(!it) return;
+        const pick = prompt("Paste the exact thread title to append to:");
+        if(!pick) return;
+        const th = st.threads.find(t=>t.title.toLowerCase()===pick.toLowerCase() && t.status!=="archived");
+        if(!th){ alert("No matching thread found."); return; }
+        th.notes = (th.notes ? th.notes + "\n\n" : "") + it.text;
+        th.updatedAt = nowIso();
+        it.status="archived";
+        saveState(st); renderFooter(st); render();
+      });
+    });
+  }
+
+  function threadBacklinks(threadId){
+    const links = [];
+    const lm = st.lifeMap;
+    if(!lm || !lm.horizons) return links;
+    for(const [hKey,h] of Object.entries(lm.horizons)){
+      for(const domain of (lm.domains||[])){
+        const list = h.domains?.[domain] || [];
+        for(const g of list){
+          const ids = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : (g.threadId?[g.threadId]:[]);
+          if(ids.map(String).includes(String(threadId))){
+            links.push({ hKey, hLabel: h.label, domain, goalId: g.id, goalTitle: g.title });
+          }
+        }
+      }
+    }
+    return links;
+  }
+
+  function renderThreads(){
+    const showArchived = document.querySelector('[data-toggle-archived]')?.checked || false;
+    const activeThreads = st.threads
+      .filter(t=>t.status!=="archived")
+      .sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    const archivedThreads = st.threads
+      .filter(t=>t.status==="archived")
+      .sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+
+    threadsEl.innerHTML = activeThreads.length ? activeThreads.map(t=>{
+      const domainPillColor = t.domain ? ` domain-pill" data-domain="${escapeAttr((t.domain||"").toLowerCase())}` : ``;
+      const links = threadBacklinks(t.id);
+
+      // Single consolidated schedule pill
+      const horizonStyles = {
+        week:    { bg:"#bbf7d0", color:"#166534", label:"\uD83D\uDCC5 This Week" },
+        month:   { bg:"#bfdbfe", color:"#1e40af", label:"\uD83D\uDDD3 This Month" },
+        quarter: { bg:"#e9d5ff", color:"#6b21a8", label:"\uD83D\uDD2D 3 Months" },
+      };
+      const topLink = links.length ? links[0] : null;
+      const schedStyle = topLink ? (horizonStyles[topLink.hKey] || horizonStyles.week) : null;
+      const pill = topLink
+        ? `<a href="strategic-life-map.html?focusGoal=${encodeURIComponent(topLink.goalId)}" style="text-decoration:none"><span class="pill" style="background:${schedStyle.bg};color:${schedStyle.color};border:none;font-weight:600">${schedStyle.label}</span></a>`
+        : `<span class="pill" style="background:#fef08a;color:#713f12;border:1px solid #facc15;font-weight:700">⏳ Unscheduled</span>`;
+
+      const backlinksHtml = "";
+
+      return `
+        <div class="item ${domainClass(t.domain)}" data-thread-card="${t.id}" id="thread-${t.id}">
+          <div class="domain-strip"></div>
+          <strong>${escapeHtml(t.title)}</strong>
+          <div class="meta">
+            ${pill}
+            ${t.domain ? `<span class="pill domain-pill" data-domain="${escapeAttr((t.domain||"").toLowerCase())}">${escapeHtml(t.domain)}</span>` : ""}
+            <span class="mono">Updated: ${new Date(t.updatedAt).toLocaleString()}</span>
+          </div>
+          ${backlinksHtml}
+          <div class="grid" style="margin-top:10px; align-items:flex-start; grid-template-columns: 1fr auto">
+            <div>
+              <label>Next micro-action (5–20 min)</label>
+              <textarea data-next="${t.id}" placeholder="Example: Open file and write 5 bullets" rows="2" style="min-height:60px;resize:vertical">${escapeHtml(t.nextAction || "")}</textarea>
+            </div>
+            <div>
+              <label style="min-height:36px; display:flex; align-items:flex-start">Status</label>
+              <select data-status="${t.id}">
+                <option value="active"   ${t.status==="active"  ?"selected":""}>active</option>
+                <option value="paused"   ${t.status==="paused"  ?"selected":""}>paused</option>
+                <option value="done"     ${t.status==="done"    ?"selected":""}>done</option>
+                <option value="archived" ${t.status==="archived"?"selected":""}>archived</option>
+              </select>
+            </div>
+          </div>
+          <label style="margin-top:10px">Notes</label>
+          <textarea data-notes="${t.id}" placeholder="Context, constraints, next thoughts…">${escapeHtml(t.notes || "")}</textarea>
+          <div class="row" style="margin-top:10px">
+            <button class="btn primary" data-save="${t.id}">Save</button>
+            <button class="btn"         data-edit="${t.id}">Edit</button>
+            <button class="btn"         data-schedule="${t.id}">Schedule</button>
+            <button class="btn warn"    data-copy="${t.id}">Copy micro-action</button>
+            <button class="btn" style="background:rgba(100,116,139,.12);color:#475569;border:1px solid rgba(100,116,139,.25)" data-archive-thread="${t.id}">Archive</button>
+            <button class="btn bad"     data-delete="${t.id}">Delete</button>
+          </div>
+        </div>
+      `;
+    }).join("") : `<p class="small">No threads yet. Create one below, or process the inbox.</p>`;
+
+    // Focus scroll
+    if(focusThreadId){
+      const el = threadsEl.querySelector(`[data-thread-card="${cssEscape(focusThreadId)}"]`);
+      if(el){ el.scrollIntoView({behavior:"smooth", block:"center"}); el.classList.add("focus-glow"); setTimeout(()=>el.classList.remove("focus-glow"), 1800); }
+    }
+
+    threadsEl.querySelectorAll("[data-save]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id  = btn.getAttribute("data-save");
+        const th  = st.threads.find(x=>String(x.id)===String(id));
+        if(!th) return;
+        th.nextAction = document.querySelector(`[data-next="${id}"]`)?.value.trim() ?? "";
+        th.notes      = document.querySelector(`[data-notes="${id}"]`)?.value.trim() ?? "";
+        th.status     = document.querySelector(`[data-status="${id}"]`)?.value ?? "active";
+        th.updatedAt  = nowIso();
+        if(th.status==="archived"){
+          if(String(st.weekly.slot1)===String(id)) st.weekly.slot1=null;
+          if(String(st.weekly.slot2)===String(id)) st.weekly.slot2=null;
+        }
+        saveState(st); renderFooter(st); render();
+      });
+    });
+
+    threadsEl.querySelectorAll("[data-schedule]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-schedule");
+        const th = st.threads.find(x=>String(x.id)===String(id));
+        if(!th) return;
+
+        // Build popup
+        const existing = document.getElementById("__schedulePop");
+        if(existing) existing.remove();
+
+        const pop = document.createElement("div");
+        pop.id = "__schedulePop";
+        pop.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:99998;display:flex;align-items:center;justify-content:center";
+        pop.innerHTML = `
+          <div style="background:#fff;border-radius:16px;padding:28px 32px;min-width:280px;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px">Schedule thread</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:18px">${escapeHtml(th.title)}</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button class="btn primary" data-sch-horizon="week"    style="text-align:left">📅 This Week <span style="font-size:11px;opacity:.7;margin-left:6px">— also adds to weekly slot</span></button>
+              <button class="btn"         data-sch-horizon="month"   style="text-align:left">🗓 This Month</button>
+              <button class="btn"         data-sch-horizon="quarter" style="text-align:left">🔭 3 Months</button>
+            </div>
+            <div style="margin-top:16px"><button class="btn" id="__schCancel">Cancel</button></div>
+          </div>
+        `;
+        document.body.appendChild(pop);
+
+        document.getElementById("__schCancel").onclick = ()=>pop.remove();
+        pop.addEventListener("click", e=>{ if(e.target===pop) pop.remove(); });
+
+        pop.querySelectorAll("[data-sch-horizon]").forEach(hBtn=>{
+          hBtn.addEventListener("click", ()=>{
+            const hKey = hBtn.getAttribute("data-sch-horizon");
+            const domain = th.domain || st.lifeMap.domains[0];
+            const horizonKeys = ["week","month","quarter"];
+
+            // Add to weekly slot if This Week
+            if(hKey==="week"){
+              if(!st.weekly.slot1) st.weekly.slot1=id;
+              else if(!st.weekly.slot2) st.weekly.slot2=id;
+              else st.weekly.slot2=id;
+            }
+
+            // First: sweep all horizons and collect ALL linked goals for this thread
+            const allLinked = [];
+            for(const hk of horizonKeys){
+              for(const d of (st.lifeMap.domains||[])){
+                const list = st.lifeMap.horizons[hk]?.domains?.[d] || [];
+                list.forEach((g,i)=>{
+                  const ids = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : (g.threadId ? [g.threadId] : []);
+                  if(ids.map(String).includes(String(id))){
+                    allLinked.push({g, hk, d, i});
+                  }
+                });
+              }
+            }
+
+            // Remove all existing linked goals (we'll re-add to the target horizon)
+            const goalToKeep = allLinked.length > 0 ? allLinked[0].g : null;
+            for(const {hk, d, g} of allLinked){
+              const list = st.lifeMap.horizons[hk].domains[d];
+              const idx = list.findIndex(x=>String(x.id)===String(g.id));
+              if(idx >= 0) list.splice(idx, 1);
+            }
+
+            // Place goal in target horizon
+            const toList = st.lifeMap.horizons[hKey].domains;
+            if(!toList[domain]) toList[domain] = [];
+            if(goalToKeep){
+              goalToKeep.updatedAt = nowIso();
+              toList[domain].unshift(goalToKeep);
+            } else {
+              const now = nowIso();
+              toList[domain].unshift({
+                id: uid(), title: th.title, notes: "", urgency: "medium",
+                createdAt: now, updatedAt: now, linkedThreadIds: [id]
+              });
+            }
+
+            saveState(st);
+            pop.remove();
+            toast(`Scheduled → ${st.lifeMap.horizons[hKey].label}`);
+            renderFooter(st); render();
+          });
+        });
+      });
+    });
+
+    threadsEl.querySelectorAll("[data-copy]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        const id = btn.getAttribute("data-copy");
+        const th = st.threads.find(x=>String(x.id)===String(id));
+        if(!th) return;
+        try{ await navigator.clipboard.writeText(th.nextAction || ""); toast("Micro-action copied."); }
+        catch{ alert("Couldn't access clipboard in this browser."); }
+      });
+    });
+
+    threadsEl.querySelectorAll("[data-delete]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-delete");
+        const th = st.threads.find(x=>String(x.id)===String(id));
+        if(!th) return;
+        if(!confirm(`Delete thread "${th.title || "this thread"}"?\n\nThis cannot be undone.`)) return;
+        st.threads = st.threads.filter(x=>String(x.id)!==String(id));
+        if(st.weekly?.slot1===id) st.weekly.slot1=null;
+        if(st.weekly?.slot2===id) st.weekly.slot2=null;
+        saveState(st); render();
+      });
+    });
+
+    threadsEl.querySelectorAll("[data-edit]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.getAttribute("data-edit");
+        const th = st.threads.find(x=>String(x.id)===String(id));
+        if(!th) return;
+        
+        // Pre-fill form with thread data
+        document.getElementById("tTitle").value = th.title || "";
+        document.getElementById("tDomain").value = th.domain || "";
+        document.getElementById("tNext").value = th.nextAction || "";
+        
+        // Update button state and text
+        updateAddBtn();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if(submitBtn) submitBtn.textContent = "Update thread";
+        
+        // Scroll to form
+        document.getElementById("tTitle").scrollIntoView({behavior: "smooth", block: "center"});
+        document.getElementById("tTitle").focus();
+        
+        // Store ID so we know we're editing
+        form.dataset.editingId = id;
+      });
+    });
+  }
+
+  function renderArchivedThreads(){
+    const section = document.getElementById('archivedThreadsSection');
+    if(!section) return;
+
+    const archivedThreads = st.threads
+      .filter(t=>t.status==="archived")
+      .sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+
+    if(!archivedThreads.length){ section.innerHTML = ''; return; }
+
+    // Preserve open/closed state across re-renders
+    const wasOpen = section.querySelector('#archivedThreadList')?.style.display === 'block';
+
+    section.innerHTML = `
+      <div class="card">
+        <button id="toggleArchivedThreads" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#64748b;padding:4px 0;display:flex;align-items:center;gap:6px;width:100%">
+          <span id="archivedThreadChevron">${wasOpen ? '▼' : '▶'}</span> Archived Threads (${archivedThreads.length})
+        </button>
+        <div id="archivedThreadList" style="display:${wasOpen ? 'block' : 'none'}; margin-top:12px">
+          ${archivedThreads.map(t=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(248,250,252,.9);border:1px solid rgba(215,222,233,.8);border-radius:12px;margin-bottom:8px">
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:14px;color:#334155">${escapeHtml(t.title)}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                  ${t.domain ? `<span style="margin-right:8px">${escapeHtml(t.domain)}</span>` : ''}
+                  archived ${new Date(t.updatedAt||t.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+              <button class="btn mini" data-restore-thread="${t.id}" style="color:#059669;border-color:rgba(5,150,105,.3)">Restore</button>
+              <button class="btn mini bad" data-perm-delete-thread="${t.id}">Delete</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    // Toggle
+    section.querySelector('#toggleArchivedThreads')?.addEventListener('click', ()=>{
+      const list = section.querySelector('#archivedThreadList');
+      const chev = section.querySelector('#archivedThreadChevron');
+      if(list.style.display === 'none'){ list.style.display='block'; chev.textContent='▼'; }
+      else { list.style.display='none'; chev.textContent='▶'; }
+    });
+
+    // Restore thread
+    section.querySelectorAll('[data-restore-thread]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-restore-thread');
+        const t = st.threads.find(x=>String(x.id)===String(id));
+        if(t){ t.status='active'; t.updatedAt=nowIso(); saveState(st); renderFooter(st); render(); toast('Thread restored.'); }
+      });
+    });
+
+    // Permanently delete thread
+    section.querySelectorAll('[data-perm-delete-thread]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-perm-delete-thread');
+        if(!confirm('Permanently delete this thread?')) return;
+        st.threads = st.threads.filter(x=>String(x.id)!==String(id));
+        saveState(st); renderFooter(st); render(); toast('Thread deleted.');
+      });
+    });
+  }
+
+  function render(){
+    renderWeeklySlots();
+    renderInbox();
+    renderThreads();
+    renderArchivedThreads();
+  }
+
+  form.addEventListener("submit",(e)=>{
+    e.preventDefault();
+    const title      = document.getElementById("tTitle").value.trim();
+    const domain     = document.getElementById("tDomain").value.trim();
+    const nextAction = document.getElementById("tNext").value.trim();
+    if(!title) return;
+    
+    // Check if we're editing an existing thread
+    const editingId = form.dataset.editingId;
+    if(editingId){
+      // Update existing thread
+      const th = st.threads.find(x=>String(x.id)===String(editingId));
+      if(th){
+        const oldDomain = th.domain;
+        th.title = title;
+        th.domain = domain;
+        th.nextAction = nextAction;
+        th.updatedAt = nowIso();
+
+        // If domain changed, move any linked goals on the Life Map to the new domain
+        if(oldDomain !== domain && st.lifeMap && st.lifeMap.horizons){
+          const horizonKeys = ["week","month","quarter"];
+          for(const hk of horizonKeys){
+            const horizonDomains = st.lifeMap.horizons[hk]?.domains;
+            if(!horizonDomains) continue;
+            for(const d of Object.keys(horizonDomains)){
+              const list = horizonDomains[d];
+              if(!Array.isArray(list)) continue;
+              const toMove = [];
+              const remaining = [];
+              list.forEach(g => {
+                const ids = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : (g.threadId ? [g.threadId] : []);
+                if(ids.map(String).includes(String(editingId))){
+                  toMove.push(g);
+                } else {
+                  remaining.push(g);
+                }
+              });
+              if(toMove.length){
+                horizonDomains[d] = remaining;
+                if(!horizonDomains[domain]) horizonDomains[domain] = [];
+                horizonDomains[domain].push(...toMove);
+              }
+            }
+          }
+        }
+      }
+      delete form.dataset.editingId;
+    } else {
+      // Create new thread
+      st.threads.push({ id: uid(), title, status:"active", domain, nextAction, notes:"", createdAt: nowIso(), updatedAt: nowIso() });
+    }
+    
+    form.reset();
+    
+    // Reset button text
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if(submitBtn) submitBtn.textContent = "Add thread";
+    
+    updateAddBtn();
+    saveState(st); renderFooter(st); render();
+  });
+
+  render();
+}
+
+// =============================================================
+// --- Strategic Life Map ---
+// =============================================================
+function initLifeMap(){
+  dbgMarkInit('lifeMap');
+  const st = initCommon();
+
+  const root = document.querySelector("#lifeMapRoot");
+  if(!root) return;
+
+  const focusGoalId = new URLSearchParams(location.search).get("focusGoal");
+  let focusGoalDone = false;
+
+  // Stripe opacity style
+  (function(){
+    const styleId = "lifeMapStripeOpacity";
+    if(document.getElementById(styleId)) return;
+    const s = document.createElement("style");
+    s.id = styleId;
+    s.textContent = `
+      #lifeMapRoot .domain-block > .domain-strip { opacity:1 !important; }
+      #lifeMapRoot .goal > .domain-strip { opacity:0.45 !important; }
+      .focus-glow { outline:3px solid rgba(255,180,0,.55); border-radius:14px; }
+    `;
+    document.head.appendChild(s);
+  })();
+
+  const horizons = ["week","month","quarter"];
+  const domains  = st.lifeMap.domains;
+
+  function threadStatusBadge(status){
+    const s = (status||"active").toLowerCase();
+    if(s==="archived"||s==="done"||s==="completed") return { label:"✓ Done",       cls:"tls-done"   };
+    if(s==="paused")                                 return { label:"⏸ Paused",     cls:"tls-paused" };
+    if(s.includes("not started"))                    return { label:"○ Not started",cls:"tls-idle"   };
+    return                                                  { label:"● Active",     cls:"tls-active" };
+  }
+
+  function threadLinksHtml(g){
+    const ids = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : [];
+    if(!ids.length) return '';
+    const threads = ids.map(id => st.threads.find(t => String(t.id)===String(id))).filter(t => t && t.status !== "archived");
+    if(!threads.length) return '';
+    const pills = threads.map(t=>{
+      const badge = threadStatusBadge(t.status);
+      return `<button class="thread-link-pill" type="button" data-open-thread="${escapeAttr(String(t.id))}" title="Open thread: ${escapeAttr(t.title)}">`
+        + `<span class="tlp-icon">🧵</span>`
+        + `<span class="tlp-status ${badge.cls}">${badge.label}</span>`
+        + `</button>`;
+    }).join("");
+    return `<div class="thread-links-row">${pills}</div>`;
+  }
+
+  // FIX: Added domain parameter, default "— None —", filter threads by domain
+  function attachThreadPickerHtml(g, domain){
+    const ids = new Set(Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds.map(String) : []);
+    const domainNorm = (domain||"").trim().toLowerCase();
+    const options = st.threads
+      .filter(t=>t.status!=="archived" && !ids.has(String(t.id)) && (domainNorm ? (t.domain||"").trim().toLowerCase()===domainNorm : true))
+      .map(t=>`<option value="${escapeAttr(String(t.id))}">${escapeHtml(t.title)}</option>`)
+      .join("");
+    if(!options) return '';
+    return `
+      <div style="margin-top:8px">
+        <label class="small">Attach existing thread</label>
+        <div class="row" style="gap:8px">
+          <select data-attach-thread-select="${escapeAttr(g.id)}">
+            <option value="">— None —</option>
+            ${options}
+          </select>
+          <button class="btn" type="button" data-attach-thread="${escapeAttr(g.id)}">Attach</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function goalRow(hKey, domain, g){
+    const dClass  = domainClass(domain);
+    const urgency = g.urgency || st.lifeMap.defaultUrgency || "medium";
+    const leftLabel  = hKey==="month"   ? "← Week"    : "← Month";
+    const rightLabel = hKey==="week"    ? "Month →"   : "Quarter →";
+    const leftBtn  = (hKey!=="week")    ? `<button class="btn arrow-btn" data-promote="${g.id}" data-h="${hKey}" data-d="${escapeAttr(domain)}" title="Move to more urgent horizon">${leftLabel}</button>`  : `<span></span>`;
+    const rightBtn = (hKey!=="quarter") ? `<button class="btn arrow-btn" data-demote="${g.id}"  data-h="${hKey}" data-d="${escapeAttr(domain)}" title="Move to less urgent horizon">${rightLabel}</button>` : `<span></span>`;
+    return `
+      <div class="goal ${dClass}" data-goal-card="${g.id}">
+        <div class="domain-strip"></div>
+        <div class="goal-head">
+          <div>
+            <div style="margin-left:4px"><span style="font-size:10px; font-weight:600; color:#94a3b8; letter-spacing:.8px; margin-right:6px; text-transform:uppercase">Goal</span><span style="font-size:16px; font-weight:800; color:#1e293b">${escapeHtml(g.title||"")}</span></div>
+            <div class="meta">
+              <span class="pill domain-pill" data-domain="${escapeAttr(domain.toLowerCase())}">${escapeHtml(domain)}</span>
+            </div>
+            ${threadLinksHtml(g)}
+            ${(()=>{ const linked = (g.linkedThreadIds||[]).map(id=>st.threads.find(t=>t.id===id)).filter(t=>t && t.status!=="archived"); const actions = linked.map(t=>t.nextAction).filter(Boolean); return actions.length ? `<div style="margin-top:8px; padding:10px 14px; background:#ffffcc; border-left:4px solid #e5e500; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08)"><div style="font-size:10px; font-weight:700; color:#334155; letter-spacing:.8px; margin-bottom:4px"><span style="color:#dc2626">⚡</span> NEXT ACTION <span style="color:#dc2626">⚡</span></div><div style="font-size:14px; font-weight:700; color:#0f172a">${escapeHtml(actions[0])}</div></div>` : ""; })()}
+          </div>
+          <div class="row" style="justify-content:flex-end; gap:8px">
+            ${leftBtn}
+            ${rightBtn}
+          </div>
+        </div>
+        <div class="row" style="gap:10px; align-items:flex-start">
+          <div style="flex:1 1 auto">
+            <label>Notes / sub-items</label>
+            <textarea data-notes="${g.id}" placeholder="One per line...">${escapeHtml(g.notes||"")}</textarea>
+          </div>
+          <div style="min-width:180px">
+            <label>Urgency</label>
+            <select data-urgency="${g.id}">
+              <option value="low"    ${urgency==="low"   ?"selected":""}>Low</option>
+              <option value="medium" ${urgency==="medium"?"selected":""}>Medium</option>
+              <option value="high"   ${urgency==="high"  ?"selected":""}>High</option>
+            </select>
+            <div style="height:10px"></div>
+            <button class="btn primary" data-save-goal="${g.id}" data-h="${hKey}" data-d="${escapeAttr(domain)}">Save</button>
+            <div style="height:8px"></div>
+            <button class="btn good"    data-thread-from-goal="${g.id}" data-h="${hKey}" data-d="${escapeAttr(domain)}">🧵 Create Thread</button>
+            ${attachThreadPickerHtml(g, domain)}
+            <div style="height:8px"></div>
+            <button class="btn" style="background:rgba(100,116,139,.12);color:#475569;border:1px solid rgba(100,116,139,.25)" data-archive-goal="${g.id}" data-h="${hKey}" data-d="${escapeAttr(domain)}">Archive</button>
+            <div style="height:6px"></div>
+            <button class="btn bad"     data-delete-goal="${g.id}" data-h="${hKey}" data-d="${escapeAttr(domain)}">Delete</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function findGoal(hKey, domain, id){
+    return (st.lifeMap.horizons[hKey]?.domains?.[domain] || []).find(x=>String(x.id)===String(id));
+  }
+
+  function moveGoal(id, hKey, domain, dir){
+    const order  = ["week","month","quarter"];
+    const idx    = order.indexOf(hKey);
+    const toKey  = dir==="promote" ? order[Math.max(0, idx-1)] : order[Math.min(order.length-1, idx+1)];
+    if(hKey===toKey) return;
+    const fromList = st.lifeMap.horizons[hKey].domains[domain];
+    const i = fromList.findIndex(x=>String(x.id)===String(id));
+    if(i<0) return;
+    const [g] = fromList.splice(i,1);
+    g.updatedAt = nowIso();
+    st.lifeMap.horizons[toKey].domains[domain].unshift(g);
+    saveState(st); renderFooter(st); render();
+  }
+
+  function render(){
+    root.innerHTML = `
+      <div class="horizon-grid">
+        ${horizons.map(hKey=>{
+          const h = st.lifeMap.horizons[hKey];
+          return `
+            <div class="hcol">
+              <div class="hcol-head">
+                <h2>${escapeHtml(h.label)}</h2>
+                <div class="kicker">Domains stay constant. Promote goals forward as they become urgent.</div>
+              </div>
+              ${domains.map(domain=>{
+                const dClass = domainClass(domain);
+                const list   = h.domains[domain] || [];
+                return `
+                  <div class="domain-block ${dClass}">
+                    <div class="domain-strip"></div>
+                    <div class="domain-head">
+                      <div>
+                        <strong>${escapeHtml(domain)}</strong>
+                        <span class="small">${list.length} goal${list.length===1?"":"s"}</span>
+                      </div>
+                      <div class="row" style="gap:8px; justify-content:flex-end">
+                        <input class="mini-input" data-new-title="${hKey}::${escapeAttr(domain)}" placeholder="New goal title…">
+                        <button class="btn primary" data-add-goal="${hKey}" data-d="${escapeAttr(domain)}">Add</button>
+                      </div>
+                    </div>
+                    <div class="goal-list">
+                      ${list.map(g=>goalRow(hKey, domain, g)).join("") || `<div class="small" style="padding:10px 0">No goals yet.</div>`}
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          `;
+        }).join("")}
+      </div>
+
+      ${(()=>{
+        const archived = st.lifeMap.archivedGoals || [];
+        if(!archived.length) return '';
+        const wasOpen = root.querySelector('#archivedList')?.style.display === 'block';
+        return `
+          <div style="margin-top:24px">
+            <button id="toggleArchive" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#64748b;padding:8px 0;display:flex;align-items:center;gap:6px">
+              <span id="archiveChevron">${wasOpen ? '▼' : '▶'}</span> Archived Goals (${archived.length})
+            </button>
+            <div id="archivedList" style="display:${wasOpen ? 'block' : 'none'}; margin-top:10px">
+              ${archived.map(a=>`
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(248,250,252,.9);border:1px solid rgba(215,222,233,.8);border-radius:12px;margin-bottom:8px">
+                  <div style="flex:1">
+                    <div style="font-weight:700;font-size:14px;color:#334155">${escapeHtml(a.title)}</div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">${escapeHtml(a.domain)} · ${escapeHtml(a.horizon)} · archived ${new Date(a.archivedAt).toLocaleDateString()}</div>
+                  </div>
+                  <button class="btn mini" data-restore-goal="${a.id}" style="color:#059669;border-color:rgba(5,150,105,.3)">Restore</button>
+                  <button class="btn mini bad" data-perm-delete-goal="${a.id}">Delete</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      })()}
+    `;
+
+    // Toggle archive section
+    root.querySelector('#toggleArchive')?.addEventListener('click', ()=>{
+      const list = root.querySelector('#archivedList');
+      const chev = root.querySelector('#archiveChevron');
+      if(list.style.display === 'none'){ list.style.display='block'; chev.textContent='▼'; }
+      else { list.style.display='none'; chev.textContent='▶'; }
+    });
+
+    // Restore goal
+    root.querySelectorAll('[data-restore-goal]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-restore-goal');
+        const archived = st.lifeMap.archivedGoals || [];
+        const idx = archived.findIndex(x=>String(x.id)===String(id));
+        if(idx<0) return;
+        const a = archived[idx];
+        // Restore to original horizon/domain if possible, else quarter
+        const hKey = a.horizonKey || 'quarter';
+        const domain = a.domain || (st.lifeMap.domains||[])[0];
+        if(!st.lifeMap.horizons[hKey]) st.lifeMap.horizons[hKey] = { label: a.horizon, domains:{} };
+        if(!st.lifeMap.horizons[hKey].domains[domain]) st.lifeMap.horizons[hKey].domains[domain] = [];
+        const { archivedAt, horizonKey, horizon, ...goal } = a;
+        st.lifeMap.horizons[hKey].domains[domain].unshift(goal);
+        // Restore linked threads too
+        const linkedIds = Array.isArray(goal.linkedThreadIds) ? goal.linkedThreadIds : [];
+        linkedIds.forEach(tid => {
+          const t = st.threads.find(x=>String(x.id)===String(tid));
+          if(t && t.status === 'archived') t.status = 'active';
+        });
+        archived.splice(idx, 1);
+        saveState(st); renderFooter(st); render();
+        toast('Goal and linked threads restored.');
+      });
+    });
+
+    // Permanently delete archived goal
+    root.querySelectorAll('[data-perm-delete-goal]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-perm-delete-goal');
+        if(!confirm('Permanently delete this goal?')) return;
+        st.lifeMap.archivedGoals = (st.lifeMap.archivedGoals||[]).filter(x=>String(x.id)!==String(id));
+        saveState(st); renderFooter(st); render();
+      });
+    });
+
+    // Add goal
+    root.querySelectorAll("[data-add-goal]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const hKey   = btn.getAttribute("data-add-goal");
+        const domain = btn.getAttribute("data-d");
+        const key    = `${hKey}::${domain}`;
+        const inp    = root.querySelector(`[data-new-title="${cssEscape(key)}"]`);
+        const title  = (inp?.value||"").trim();
+        if(!title){ alert("Type a goal title first."); inp?.focus?.(); return; }
+        const now = nowIso();
+        st.lifeMap.horizons[hKey].domains[domain].unshift({
+          id: uid(), title, notes:"", urgency: st.lifeMap.defaultUrgency || "medium",
+          createdAt: now, updatedAt: now, linkedThreadIds:[]
+        });
+        inp.value="";
+        saveState(st); renderFooter(st); render();
+      });
+    });
+
+    // Promote / demote
+    root.querySelectorAll("[data-promote]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{ moveGoal(btn.getAttribute("data-promote"), btn.getAttribute("data-h"), btn.getAttribute("data-d"), "promote"); });
+    });
+    root.querySelectorAll("[data-demote]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{ moveGoal(btn.getAttribute("data-demote"), btn.getAttribute("data-h"), btn.getAttribute("data-d"), "demote"); });
+    });
+
+    // Save goal
+    root.querySelectorAll("[data-save-goal]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id     = btn.getAttribute("data-save-goal");
+        const hKey   = btn.getAttribute("data-h");
+        const domain = btn.getAttribute("data-d");
+        const g = findGoal(hKey, domain, id);
+        if(!g) return;
+        g.notes    = root.querySelector(`[data-notes="${cssEscape(id)}"]`)?.value.trim() ?? "";
+        g.urgency  = root.querySelector(`[data-urgency="${cssEscape(id)}"]`)?.value ?? "medium";
+        g.updatedAt = nowIso();
+        saveState(st); renderFooter(st); render();
+      });
+    });
+
+    // Archive goal
+    root.querySelectorAll("[data-archive-goal]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id     = btn.getAttribute("data-archive-goal");
+        const hKey   = btn.getAttribute("data-h");
+        const domain = btn.getAttribute("data-d");
+        const list   = st.lifeMap.horizons[hKey]?.domains?.[domain];
+        if(!list) return;
+        const idx = list.findIndex(x=>String(x.id)===String(id));
+        if(idx<0) return;
+        const goal = list.splice(idx, 1)[0];
+        if(!st.lifeMap.archivedGoals) st.lifeMap.archivedGoals = [];
+
+        // Archive any linked threads too
+        const linkedIds = Array.isArray(goal.linkedThreadIds) ? goal.linkedThreadIds : [];
+        linkedIds.forEach(tid => {
+          const t = st.threads.find(x=>String(x.id)===String(tid));
+          if(t && t.status !== 'archived') t.status = 'archived';
+        });
+
+        st.lifeMap.archivedGoals.unshift({
+          ...goal,
+          horizonKey: hKey,
+          horizon: st.lifeMap.horizons[hKey]?.label || hKey,
+          domain,
+          archivedAt: nowIso()
+        });
+        saveState(st); renderFooter(st); render();
+        const threadCount = linkedIds.length;
+        toast(`Goal archived${threadCount ? ` (+ ${threadCount} linked thread${threadCount>1?'s':''})` : ''}.`);
+      });
+    });
+
+    // Delete goal
+    root.querySelectorAll("[data-delete-goal]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id     = btn.getAttribute("data-delete-goal");
+        const hKey   = btn.getAttribute("data-h");
+        const domain = btn.getAttribute("data-d");
+        if(!confirm("Delete this goal?")) return;
+        const list = st.lifeMap.horizons[hKey].domains[domain];
+        const idx  = list.findIndex(x=>String(x.id)===String(id));
+        if(idx>=0){ list.splice(idx,1); saveState(st); renderFooter(st); render(); }
+      });
+    });
+
+    // Create thread from goal
+    root.querySelectorAll("[data-thread-from-goal]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id     = btn.getAttribute("data-thread-from-goal");
+        const hKey   = btn.getAttribute("data-h");
+        const domain = btn.getAttribute("data-d");
+        const g = findGoal(hKey, domain, id);
+        if(!g) return;
+        const now        = nowIso();
+        const nextAction = (g.notes||"").split("\n").map(x=>x.trim()).find(Boolean) || "First step: [describe 5–20 minute action]";
+        const thread = {
+          id: uid(), title: g.title, status: "active", domain, nextAction,
+          notes: `Linked from Life Map (${st.lifeMap.horizons[hKey].label}).\n\n${g.notes||""}`.trim(),
+          createdAt: now, updatedAt: now
+        };
+        st.threads.unshift(thread);
+        g.linkedThreadIds = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : [];
+        g.linkedThreadIds.unshift(thread.id);
+        g.linkedThreadIds = [...new Set(g.linkedThreadIds.map(String))];
+        g.updatedAt = now;
+        saveState(st);
+        location.href = `thread-registry.html?focusThread=${encodeURIComponent(thread.id)}`;
+      });
+    });
+
+    // Open linked thread
+    root.querySelectorAll("[data-open-thread]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const tid = btn.getAttribute("data-open-thread");
+        if(tid) location.href = `thread-registry.html?focusThread=${encodeURIComponent(tid)}`;
+      });
+    });
+
+    // Attach existing thread to goal
+    root.querySelectorAll("[data-attach-thread]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const goalId = btn.getAttribute("data-attach-thread");
+        const sel    = root.querySelector(`[data-attach-thread-select="${cssEscape(goalId)}"]`);
+        const tid    = sel ? sel.value : "";
+        if(!tid) return;
+        let g = null;
+        for(const hk of horizons){
+          for(const d of domains){
+            g = findGoal(hk, d, goalId);
+            if(g) break;
+          }
+          if(g) break;
+        }
+        if(!g) return;
+        g.linkedThreadIds = Array.isArray(g.linkedThreadIds) ? g.linkedThreadIds : [];
+        if(!g.linkedThreadIds.map(String).includes(String(tid))){
+          g.linkedThreadIds.unshift(tid);
+          g.linkedThreadIds = [...new Set(g.linkedThreadIds.map(String))];
+          g.updatedAt = nowIso();
+          saveState(st); renderFooter(st); render();
+        }
+      });
+    });
+
+    // Focus goal scroll (from URL param)
+    if(focusGoalId && !focusGoalDone){
+      const el = root.querySelector(`[data-goal-card="${cssEscape(focusGoalId)}"]`);
+      if(el){
+        focusGoalDone = true;
+        el.scrollIntoView({behavior:"smooth", block:"center"});
+        el.classList.add("focus-glow");
+        setTimeout(()=>el.classList.remove("focus-glow"), 1800);
+      }
+    }
+  }
+
+  render();
+}
+
+// =============================================================
+// --- Income Map ---
+// =============================================================
+function initIncomeMap(){
+  dbgMarkInit('incomeMap');
+  const st = initCommon();
+
+  const startInput    = document.querySelector("#startDate");
+  const weekEl        = document.querySelector("#weekNow");
+  const checkpointsEl = document.querySelector("#checkpoints");
+
+  if(startInput) startInput.value = st.incomeMap.startDate || "";
+
+  const cps = [
+    {week:4,  title:"Tighten focus",     detail:"Drop non-earning distractions",        threadTitle:"Income runway — Week 4: tighten focus",     nextAction:"Pick 1–2 income channels; pause one non-earning distraction."},
+    {week:6,  title:"Commit & pipeline", detail:"Commit to 1–2 channels, build pipeline",threadTitle:"Income runway — Week 6: commit & pipeline",  nextAction:"Write next 3 outreach/listing steps; schedule first one today."},
+    {week:8,  title:"Evaluate traction", detail:"Escalate if stalled",                  threadTitle:"Income runway — Week 8: evaluate traction",  nextAction:"Review wins/metrics; decide keep / adjust / stop one channel."},
+    {week:10, title:"Decision runway",   detail:"SS / part-time / pivot",               threadTitle:"Income runway — Week 10: decision runway",   nextAction:"Draft decision notes + 2 questions; book 1 call if needed."},
+  ];
+
+  function render(){
+    const w = weekNumberFromStart(st.incomeMap.startDate);
+    if(weekEl) weekEl.textContent = w ? `Week ${w} of 12` : `—`;
+
+    checkpointsEl.innerHTML = cps.map(cp=>{
+      const isNow      = w ? (w >= cp.week && w < cp.week + 2) : false;
+      const isUpcoming = w ? (w < cp.week) : true;
+      return `
+        <div class="card">
+          <h3>Week ${cp.week}: ${cp.title}</h3>
+          <div class="small">${cp.detail}</div>
+          <div class="row" style="gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap">
+            <span class="pill ${isNow ? 'good' : (isUpcoming ? 'warn' : '')}" style="pointer-events:none">
+              ${isNow ? 'Current window' : (isUpcoming ? 'Upcoming' : 'Passed')}
+            </span>
+            ${w ? `<span class="pill" style="pointer-events:none">Current: Week ${w}</span>` : ""}
+            <button class="btn mini" data-mkthread="${cp.week}" title="Create a thread in the Registry">Make thread</button>
+          </div>
+          <div class="small" style="margin-top:10px"><span class="mono">Suggested micro-action:</span> ${escapeHtml(cp.nextAction)}</div>
+        </div>`;
+    }).join("");
+
+    checkpointsEl.querySelectorAll("[data-mkthread]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const wk = Number(btn.getAttribute("data-mkthread"));
+        const cp = cps.find(x=>x.week===wk);
+        if(!cp) return;
+        const now = nowIso();
+        st.threads.push({
+          id: uid(), title: cp.threadTitle, status: "active", domain: "Financial",
+          nextAction: cp.nextAction,
+          notes: `Created from Income Map checkpoint (Week ${wk}).\n\n${cp.detail}`,
+          createdAt: now, updatedAt: now,
+        });
+        saveState(st);
+        toast("Thread created in Thread Registry (domain: Income).");
+      });
+    });
+  }
+
+  if(startInput){
+    startInput.addEventListener("change", ()=>{
+      st.incomeMap.startDate = startInput.value || null;
+      saveState(st); renderFooter(st); render();
+    });
+  }
+
+  render();
+}
+
+// =============================================================
+// --- Morning Map ---
+// =============================================================
+function initMorningMap(){
+  dbgMarkInit('morningMap');
+  const container = document.getElementById('mainContent') || document.querySelectorAll('.container')[1];
+  if(!container) return;
+  initCommon();
+  const st = loadState();
+  ensureLifeMapSchema(st);
+
+  st.meta = st.meta || {};
+  if(!st.meta.systemNotesText) st.meta.systemNotesText = DEFAULT_ORIENTATION_TEXT;
+  if(!st.meta.northStarText) st.meta.northStarText = "I'm building a peaceful, independent life with room to create and a stable home.\n\n• No consumer debt\n• Clear housing path\n• Sustainable, sufficient income\n• Time and space for creative work\n• Health managed deliberately";
+  if(!st.meta.morningScratch)    st.meta.morningScratch    = '';
+  if(!st.meta.ignitionIntent)    st.meta.ignitionIntent    = '';
+  if(!st.meta.ignitionFirstMove) st.meta.ignitionFirstMove = '';
+  if(!st.meta.ignitionTimebox)   st.meta.ignitionTimebox   = '10';
+  if(!st.meta.mvtThreadId)       st.meta.mvtThreadId       = '';
+  if(!st.meta.sparkNotes)        st.meta.sparkNotes        = '';
+
+  const threads = (st.threads || []).filter(t=>t.status!=="archived");
+  const threadOptions = ['<option value="">—</option>'].concat(
+    threads.map(t=>`<option value="${esc(String(t.id))}">${esc(t.title||'(untitled)')}</option>`)
+  ).join('');
+
+  container.innerHTML = `
+
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="margin-bottom:6px">North Star</div>
+      <div id="nsPreview" class="nsPreview"></div>
+      <textarea id="nsText" class="nsText" spellcheck="false">${esc(st.meta.northStarText)}</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="nsSave">Save</button>
+        <div class="small muted">Keep this short. Read it in 5 seconds.</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="stack">
+        <div class="card">
+          <div class="h2">MVT: Most Valuable Task</div>
+          <div class="field">
+            <label>Today's MVT</label>
+            <select id="mvtThread">${threadOptions}</select>
+          </div>
+          <div class="row"><button class="btn primary" id="mvtSave">Save</button></div>
+        </div>
+
+        <div class="card">
+          <div class="h2">Ignition block</div>
+          <div class="field">
+            <label>Intent (one sentence)</label>
+            <input id="igIntent" type="text" placeholder="Example: Make money progress in 10 minutes." value="${esc(st.meta.ignitionIntent)}"/>
+          </div>
+          <div class="field">
+            <label>First move (physical, 60–120 seconds)</label>
+            <input id="igMove" type="text" placeholder="Example: Open Etsy drafts and add one photo." value="${esc(st.meta.ignitionFirstMove)}"/>
+          </div>
+          <div class="field">
+            <label>Timebox</label>
+            <select id="igTimebox">
+              ${['10','15','20','30'].map(v=>`<option value="${v}" ${st.meta.ignitionTimebox===v?'selected':''}>${v} min</option>`).join('')}
+            </select>
+          </div>
+          <div class="row"><button class="btn primary" id="igSave">Save</button></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="h2">Focus strip</div>
+          <div class="muted">Your two active threads for the week.</div>
+          <div class="slot"><div class="small">Weekly Slot #1</div><select id="slot1">${threadOptions}</select></div>
+          <div class="slot"><div class="small">Weekly Slot #2</div><select id="slot2">${threadOptions}</select></div>
+          <div class="row"><button class="btn primary" id="slotsSave">Save</button></div>
+        </div>
+
+        <div class="card">
+          <div class="h2">Scratchpad</div>
+          <textarea id="mmScratch" class="scratch" placeholder="A quick note to future-you...">${esc(st.meta.morningScratch)}</textarea>
+          <div class="row"><button class="btn primary" id="mmScratchSave">Save</button></div>
+        </div>
+
+        <div class="card">
+          <div class="h2">Spark capture</div>
+          <textarea id="sparkNotes" class="scratch" placeholder="One per line...">${esc(st.meta.sparkNotes)}</textarea>
+          <div class="row"><button class="btn primary" id="sparkSave">Save</button></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Set dropdown values
+  const slot1El = document.getElementById('slot1');
+  const slot2El = document.getElementById('slot2');
+  const mvdEl   = document.getElementById('mvtThread');
+  if(slot1El) slot1El.value = st.weeklySlots?.slot1 || '';
+  if(slot2El) slot2El.value = st.weeklySlots?.slot2 || '';
+  if(mvdEl)   mvdEl.value   = st.meta.mvtThreadId   || '';
+
+  const updatePreview = ()=>{
+    const first = (document.getElementById('nsText')?.value||'').split('\n').find(l=>l.trim())||'';
+    const prev  = document.getElementById('nsPreview');
+    if(prev) prev.textContent = first.trim();
+  };
+  updatePreview();
+  document.getElementById('nsText')?.addEventListener('input', updatePreview);
+
+  document.getElementById('nsSave')?.addEventListener('click',()=>{ st.meta.northStarText = document.getElementById('nsText').value; saveState(st); toast('Saved'); updatePreview(); });
+  document.getElementById('mmScratchSave')?.addEventListener('click',()=>{ st.meta.morningScratch = document.getElementById('mmScratch').value; saveState(st); toast('Saved'); });
+  document.getElementById('sparkSave')?.addEventListener('click',()=>{ st.meta.sparkNotes = document.getElementById('sparkNotes').value; saveState(st); toast('Saved'); });
+  document.getElementById('slotsSave')?.addEventListener('click',()=>{
+    st.weeklySlots = st.weeklySlots || {};
+    st.weeklySlots.slot1 = document.getElementById('slot1').value;
+    st.weeklySlots.slot2 = document.getElementById('slot2').value;
+    saveState(st); toast('Saved');
+  });
+  document.getElementById('igSave')?.addEventListener('click',()=>{
+    st.meta.ignitionIntent    = document.getElementById('igIntent').value;
+    st.meta.ignitionFirstMove = document.getElementById('igMove').value;
+    st.meta.ignitionTimebox   = document.getElementById('igTimebox').value;
+    saveState(st); toast('Saved');
+  });
+  document.getElementById('mvtSave')?.addEventListener('click',()=>{ st.meta.mvtThreadId = document.getElementById('mvtThread').value; saveState(st); toast('Saved'); });
+}
+
+// =============================================================
+// --- Long View ---
+// =============================================================
+function initLongView(){
+  dbgMarkInit('longView');
+  const st = initCommon();
+  const container = document.getElementById('mainContent');
+  if(!container) return;
+
+  const domainColors = {
+    debt:     'domain-financial',
+    housing:  'domain-home',
+    income:   'domain-income',
+    creative: 'domain-personal',
+    health:   'domain-health',
+  };
+
+  function render(){
+    const objs = st.longView.objectives;
+    container.innerHTML = `
+      <div style="margin-bottom:18px">
+        <div class="h2" style="font-size:20px; margin-bottom:4px">🔭 Long View</div>
+        <div class="muted">Your objectives and the goals beneath them. Use this to populate the planner.</div>
+      </div>
+      ${objs.map(obj => `
+        <div class="card" style="margin-bottom:16px">
+          <div class="domain-strip ${domainColors[obj.id] || ''}"></div>
+          <div class="h2" style="font-size:17px; margin-bottom:12px">🎯 ${escapeHtml(obj.label)}</div>
+          ${obj.goals.map((g, i) => {
+            const hasThread = g.trim() && st.threads.some(t => t.title === g.trim());
+            return `
+            <div class="field" style="margin-bottom:10px">
+              <div class="row" style="gap:8px; align-items:center">
+                <input
+                  type="text"
+                  class="lv-goal-input"
+                  data-obj="${obj.id}"
+                  data-idx="${i}"
+                  placeholder="Goal ${i+1} — what does progress look like in 12 weeks?"
+                  value="${escapeHtml(g)}"
+                  style="flex:1"
+                />
+                <button
+                  class="btn mini lv-make-thread"
+                  data-obj="${obj.id}"
+                  data-idx="${i}"
+                  title="${hasThread ? 'Thread already exists in Registry' : 'Send to Thread Registry'}"
+                  ${g.trim() ? '' : 'disabled'}
+                  style="${hasThread ? 'background:rgba(16,185,129,.15); color:#059669; border:1px solid rgba(16,185,129,.4); cursor:default;' : ''}"
+                >${hasThread ? '✓ Thread exists' : 'Make Thread'}</button>
+              </div>
+            </div>
+          `}).join('')}
+          <div class="row" style="margin-top:6px">
+            <button class="btn lv-save" data-obj="${obj.id}">Save</button>
+          </div>
+        </div>
+      `).join('')}
+    `;
+
+    // Save buttons
+    container.querySelectorAll('.lv-save').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const objId = btn.getAttribute('data-obj');
+        const obj   = st.longView.objectives.find(o => o.id === objId);
+        if(!obj) return;
+        container.querySelectorAll(`.lv-goal-input[data-obj="${objId}"]`).forEach(inp => {
+          const idx = Number(inp.getAttribute('data-idx'));
+          obj.goals[idx] = inp.value.trim();
+        });
+        saveState(st);
+        toast('Saved');
+        render(); // re-render to update disabled state on Make Thread buttons
+      });
+    });
+
+    // Make Thread buttons
+    container.querySelectorAll('.lv-make-thread').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const objId = btn.getAttribute('data-obj');
+        const idx   = Number(btn.getAttribute('data-idx'));
+        const obj   = st.longView.objectives.find(o => o.id === objId);
+        if(!obj) return;
+        const goalText = obj.goals[idx];
+        if(!goalText) return;
+        // Prevent duplicate threads
+        if(st.threads.some(t => t.title === goalText.trim())){ toast('A thread for this goal already exists.'); return; }
+        const domainMap = {
+          debt: 'Financial', housing: 'Home',
+          income: 'Financial', creative: 'Personal', health: 'Health',
+          tentative: 'Tentative'
+        };
+        const now = nowIso();
+        st.threads.push({
+          id: uid(),
+          title: goalText,
+          status: 'active',
+          domain: domainMap[objId] || 'Personal',
+          nextAction: '',
+          notes: `Created from Long View objective: ${obj.label}`,
+          createdAt: now,
+          updatedAt: now,
+        });
+        saveState(st);
+        toast('Thread created in Thread Registry.');
+        render();
+      });
+    });
+  }
+
+  render();
+}
+
+// =============================================================
+// --- Overview (simple read-only) ---
+// =============================================================
+function initOverview(){
+  dbgMarkInit('overview');
+  const st = initCommon();
+  const notesEl = document.getElementById('notesText');
+  if(notesEl){
+    notesEl.value = st.meta.systemNotesText || '';
+    document.getElementById('notesSave')?.addEventListener('click',()=>{
+      st.meta.systemNotesText = notesEl.value;
+      saveState(st);
+      toast('Saved');
+    });
+  }
+}
+
+// =============================================================
+// --- Page router ---
+// =============================================================
+document.addEventListener("DOMContentLoaded", ()=>{
+  dbgRefresh();
+  ensureTopbarNav();
+  const page = (document.body.getAttribute("data-page")||"").toLowerCase();
+  if     (page==="quick")                      { dbgMarkInit('quick');      initQuickCapture();  }
+  else if(page==="registry")                   { dbgMarkInit('registry');   initThreadRegistry();}
+  else if(page==="morningmap" || page==="home"){ dbgMarkInit('morningMap'); initMorningMap();    }
+  else if(page==="lifemap")                    { dbgMarkInit('lifeMap');    initLifeMap();       }
+  else if(page==="income")                     { dbgMarkInit('income');     initIncomeMap();     }
+  else if(page==="longview")                   { dbgMarkInit('longview');   initLongView();      }
+  else if(page==="overview")                   { dbgMarkInit('overview');   initOverview();      }
+  else                                         { dbgMarkInit('common');     initCommon();        }
+});
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  try{ const el = document.querySelector("[data-build]"); if(el) el.textContent = BUILD_VERSION; }catch(e){}
+});

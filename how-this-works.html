@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <title>How This Works · Planner</title>
+  <link rel="icon" href="favicon.ico"/>
+  <link rel="stylesheet" href="assets/style.css?v=53"/>
+</head>
+<body data-page="overview">
+  <div class="topbar">
+    <div class="container">
+      <div class="row" style="justify-content:space-between">
+        <div class="brand">
+          <span style="font-size:20px">📜</span>
+          <span>How This Works</span>
+          <span class="badge" data-sync-indicator>• Not connected</span>
+          <span class="badge" data-build></span>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn" data-open-sync>Sync</button>
+          <button class="btn" data-export>Export</button>
+          <label class="btn" style="cursor:pointer">
+            Import <input type="file" accept="application/json" data-import style="display:none">
+          </label>
+        </div>
+      </div>
+      <div class="nav"></div>
+    </div>
+  </div>
+
+  <div class="container" id="mainContent" style="padding-top:18px; padding-bottom:28px">
+
+    <!-- THE HIERARCHY -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="font-size:20px; margin-bottom:4px">🧭 The Big Picture</div>
+      <div class="muted" style="margin-bottom:16px">This system is built around one principle: start with the end in mind, then work backward.</div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:8px">
+        <div style="background:rgba(99,102,241,.08); border-left:4px solid #6366f1; border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:2px">🎯 Objectives</div>
+          <div class="small muted">The stable anchors of your life. Rarely change. These live on the <strong>Long View</strong> page and in your North Star.</div>
+        </div>
+        <div style="text-align:center; color:var(--muted); font-size:18px">↓</div>
+        <div style="background:rgba(245,158,11,.08); border-left:4px solid #f59e0b; border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:2px">📌 Goals</div>
+          <div class="small muted">Specific outcomes you want to reach in the next 12 weeks. 2–3 per objective. Also on the <strong>Long View</strong> page, and promoted into the <strong>Strategic Life Map</strong> when active.</div>
+        </div>
+        <div style="text-align:center; color:var(--muted); font-size:18px">↓</div>
+        <div style="background:rgba(16,185,129,.08); border-left:4px solid #10b981; border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:2px">🧵 Threads &amp; Actions</div>
+          <div class="small muted">The active work. Each thread is a named pursuit with a single micro-action (5–20 min). These live in the <strong>Thread Registry</strong> and surface daily on the <strong>Morning Map</strong>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- THE PAGES -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="font-size:20px; margin-bottom:16px">📄 What Each Page Does</div>
+
+      <div style="display:flex; flex-direction:column; gap:14px">
+
+        <div style="border-bottom:1px solid rgba(0,0,0,.07); padding-bottom:14px">
+          <div style="font-weight:700; margin-bottom:3px">🗺 Morning Map <span class="small muted">(index.html)</span></div>
+          <div class="small">Your daily starting point. Read your North Star, pick your MVT (Most Valuable Task), set your intent and first move for the session. Scratchpad and Spark Capture for anything that surfaces. Open this first, every day.</div>
+        </div>
+
+        <div style="border-bottom:1px solid rgba(0,0,0,.07); padding-bottom:14px">
+          <div style="font-weight:700; margin-bottom:3px">⚡ Quick Capture</div>
+          <div class="small">Brain dump. If a thought, idea, or task surfaces and you don't want to lose it, put it here immediately. Don't organize — just capture. Process it later into threads or goals.</div>
+        </div>
+
+        <div style="border-bottom:1px solid rgba(0,0,0,.07); padding-bottom:14px">
+          <div style="font-weight:700; margin-bottom:3px">🗺 Strategic Life Map</div>
+          <div class="small">Your active planning layer. Goals organized by domain across three time horizons — This Week, This Month, and 3 Months. Promote goals forward as they become urgent. Default landing is 3 Months so you always see the full picture first.</div>
+        </div>
+
+        <div style="border-bottom:1px solid rgba(0,0,0,.07); padding-bottom:14px">
+          <div style="font-weight:700; margin-bottom:3px">🧵 Thread Registry</div>
+          <div class="small">Every active pursuit lives here as a named thread with a domain, status, notes, and a single micro-action. Two threads are pinned to your weekly Focus Strip on the Morning Map. Threads can be linked to goals on the Strategic Life Map.</div>
+        </div>
+
+        <div style="border-bottom:1px solid rgba(0,0,0,.07); padding-bottom:14px">
+          <div style="font-weight:700; margin-bottom:3px">🔭 Long View</div>
+          <div class="small">Your objectives and the goals beneath them. Quiet, out of daily sight, but the source of everything. Use it when doing longer-term thinking, then send goals into the planner with the Make Thread button. Visit periodically — not daily.</div>
+        </div>
+
+        <div>
+          <div style="font-weight:700; margin-bottom:3px">📜 How This Works</div>
+          <div class="small">You're here. Reference page. Out of the way but always available.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DAILY RHYTHM -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="font-size:20px; margin-bottom:12px">⏱ Daily Rhythm</div>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div style="background:rgba(99,102,241,.06); border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:3px">☀️ Morning (5 min)</div>
+          <div class="small muted">Open Morning Map. Read North Star. Set MVT. Fill in Intent and First Move. Start the timebox.</div>
+        </div>
+        <div style="background:rgba(16,185,129,.06); border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:3px">🌙 Evening (5 min)</div>
+          <div class="small muted">Note one win in the Scratchpad. Update the micro-action on any thread you touched. Capture any loose thoughts in Quick Capture. Hand one thought off to tomorrow.</div>
+        </div>
+        <div style="background:rgba(245,158,11,.06); border-radius:8px; padding:12px 16px">
+          <div style="font-weight:700; margin-bottom:3px">📅 Weekly (15 min)</div>
+          <div class="small muted">Review all active threads in the Registry — reactivate anything that's gone quiet. Update Focus Strip slots for the coming week. Glance at Strategic Life Map to see if anything needs promoting.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYNC -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="font-size:20px; margin-bottom:12px">☁️ Sync &amp; Data</div>
+      <div class="small" style="line-height:1.8">
+        All data is stored in a single <span class="mono">planner-data.json</span> file in a private GitHub Gist. 
+        Auto-pull loads your latest data when each page opens. 
+        Push is always manual — this prevents one device accidentally overwriting another.<br><br>
+        <strong>Before switching devices:</strong> Push on the device you just used.<br>
+        <strong>If data looks stale:</strong> Use Force Pull to override local state.<br>
+        <strong>Security:</strong> Your GitHub token is stored only in this browser on this device. Use a fine-grained personal access token scoped to Gists only.
+      </div>
+    </div>
+
+    <!-- SYSTEM NOTES (moved from Morning Map) -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="h2" style="font-size:20px; margin-bottom:4px">🗒 System Notes</div>
+      <div class="muted small" style="margin-bottom:12px">Original design notes — for reference when you want to revisit the thinking behind the system.</div>
+      <textarea id="notesText" class="notesText" spellcheck="false" style="min-height:200px; font-size:13px"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="notesSave">Save</button>
+      </div>
+    </div>
+
+    <div class="footer" data-footer></div>
+  </div>
+
+  <div class="modal-backdrop" id="syncModalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Sync Settings">
+      <div class="modal-header">
+        <div class="modal-title">Sync (GitHub Gist)</div>
+        <button class="btn" data-close-sync>Close</button>
+      </div>
+      <p class="kicker">Auto-pull on load is ON. Push is manual. Token stays on this device only.</p>
+      <label>Gist ID</label>
+      <input id="syncGistId" placeholder="paste the Gist ID from the URL"/>
+      <label>GitHub Token (gist read/write)</label>
+      <input id="syncToken" type="password" placeholder="paste token here"/>
+      <label style="display:flex;align-items:center;gap:10px;margin-top:10px">
+        <input id="syncAutoPull" type="checkbox" style="width:auto"> Enable auto-pull on page load
+      </label>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="syncSave">Save</button>
+        <button class="btn good" id="syncPull">Pull</button>
+        <button class="btn warn" id="syncForcePull">Force Pull</button>
+        <button class="btn primary" id="syncPush">Push</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn bad" id="syncClear">Clear sync settings (this device)</button>
+      </div>
+      <p class="small" id="syncStatus"></p>
+      <p class="small">Cloud file name: <span class="mono">planner-data.json</span></p>
+    </div>
+  </div>
+
+  <script src="assets/app.demo.js?v=53"></script>
+</body>
+</html>
